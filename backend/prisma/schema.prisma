@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  password      String
+  name          String
+  role          String          @default("STUDENT")
+  phone         String?         @unique
+  institute     String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  exams         Exam[]          @relation("UserExams")
+  results       Result[]
+  proctoringLogs ProctoringLog[]
+  activityLogs  ActivityLog[]
+  subscriptions Subscription[]
+  resetCode       String?
+  resetCodeExpiry DateTime?
+}
+
+model Exam {
+  id            String     @id @default(uuid())
+  title         String
+  description   String?
+  code          String     @unique
+  duration      Int        // in minutes
+  startTime     DateTime?
+  endTime       DateTime?
+  totalMarks    Int
+  passingMarks  Int
+  sections      Section[]
+  questions     Question[]
+  createdBy     User       @relation("UserExams", fields: [createdById], references: [id])
+  createdById   String
+  results       Result[]
+  proctoringLogs ProctoringLog[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Section {
+  id          String     @id @default(uuid())
+  name        String
+  exam        Exam       @relation(fields: [examId], references: [id])
+  examId      String
+  questions   Question[]
+}
+
+model Question {
+  id            String       @id @default(uuid())
+  text          String
+  type          String       @default("MCQ")
+  difficulty    String       @default("MEDIUM")
+  marks         Int          @default(1)
+  negativeMarks Float        @default(0)
+  subject       String
+  explanation   String?
+  options       Option[]
+  exam          Exam?        @relation(fields: [examId], references: [id])
+  examId        String?
+  section       Section?     @relation(fields: [sectionId], references: [id])
+  sectionId     String?
+  pyq           PyqBank?     @relation(fields: [pyqId], references: [id])
+  pyqId         String?
+}
+
+model Option {
+  id          String   @id @default(uuid())
+  text        String
+  isCorrect   Boolean  @default(false)
+  question    Question @relation(fields: [questionId], references: [id])
+  questionId  String
+}
+
+model Result {
+  id            String    @id @default(uuid())
+  user          User      @relation(fields: [userId], references: [id])
+  userId        String
+  exam          Exam      @relation(fields: [examId], references: [id])
+  examId        String
+  score         Float
+  totalMarks    Int
+  correct       Int
+  incorrect     Int
+  accuracy      Float
+  timeSpent     Int       // in seconds
+  analysis      String?   // changed Json? to String? for SQLite compatibility if needed, or keeping it as Json? SQLite prisma supports Json? actually. Let's keep it Json?
+  createdAt     DateTime  @default(now())
+}
+
+model ProctoringLog {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  exam          Exam     @relation(fields: [examId], references: [id])
+  examId        String
+  eventType     String   // e.g., "EYE_TRACKING", "FACE_MISSING", "TAB_SWITCH"
+  timestamp     DateTime @default(now())
+  screenshotUrl String?
+  riskScore     Float    @default(0)
+  details       String?
+}
+
+model PyqBank {
+  id        String     @id @default(uuid())
+  examName  String     // e.g., "SSC CGL"
+  year      Int
+  subject   String
+  topic     String?
+  questions Question[]
+  createdAt DateTime   @default(now())
+}
+
+model AIQuestionBank {
+  id          String     @id @default(uuid())
+  subject     String
+  topic       String?
+  difficulty  String     @default("MEDIUM")
+  question    String
+  answer      String
+  explanation String?
+  createdAt   DateTime   @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  action    String
+  timestamp DateTime @default(now())
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  plan      String   // e.g., "FREE", "PREMIUM"
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

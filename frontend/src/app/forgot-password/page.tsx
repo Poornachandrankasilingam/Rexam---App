@@ -1,0 +1,111 @@
+"use client"
+
+import { useState } from "react"
+import { motion } from "framer-motion"
+import { Mail, ArrowRight, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import api from "@/lib/api"
+
+export default function ForgotPasswordPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      const response = await api.post("/auth/forgot-password", { email })
+      setSuccess("Reset code generated and sent successfully!")
+      
+      // Store email in sessionStorage or pass via query param to prefill in reset screen
+      sessionStorage.setItem("reset_email", email)
+      
+      // Auto-redirect to reset password page after 2 seconds
+      setTimeout(() => {
+        router.push(`/reset-password?email=${encodeURIComponent(email)}`)
+      }, 2000)
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/3 -right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-50"></div>
+        <div className="absolute bottom-1/3 -left-10 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl opacity-50"></div>
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md relative"
+      >
+        <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
+          <div className="text-center mb-8">
+            <div className="inline-flex mb-4">
+              <img src="/logo.jpg" alt="Rexam Logo" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+            </div>
+            <h1 className="text-3xl font-bold">Reset Password</h1>
+            <p className="text-muted-foreground mt-2">Enter your email to receive a password reset code</p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-xl">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm rounded-xl">
+              {success} Redirecting to verification...
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+                <Mail className="h-5 w-5" />
+              </div>
+              <input
+                type="email"
+                placeholder="Email Address"
+                className="w-full pl-11 pr-4 py-3.5 bg-background/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading || !!success}
+              />
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading || !!success}
+              className="w-full py-6 rounded-xl text-lg font-bold shadow-lg shadow-primary/20 group"
+            >
+              {loading ? "Sending..." : "Request Reset Code"}
+              {!loading && !success && <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />}
+            </Button>
+          </form>
+
+          <div className="text-center mt-8">
+            <Link href="/login" className="inline-flex items-center text-sm font-semibold text-primary hover:underline group">
+              <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+              Back to Login
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
