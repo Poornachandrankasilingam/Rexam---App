@@ -27,7 +27,9 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Portal</h1>
-          <p className="text-muted-foreground mt-1">Manage examinations, students, and proctoring logs.</p>
+          <p className="text-muted-foreground mt-1">
+            Welcome back, {user?.name || "Admin"}. Manage examinations, students, and proctoring logs.
+          </p>
         </div>
         <div className="flex space-x-3">
           <Button variant="outline" className="rounded-xl border-dashed">

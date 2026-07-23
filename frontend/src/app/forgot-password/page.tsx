@@ -4,6 +4,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, ArrowRight, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import api from "@/lib/api"
@@ -22,7 +23,7 @@ export default function ForgotPasswordPage() {
     setSuccess("")
 
     try {
-      const response = await api.post("/auth/forgot-password", { email })
+      await api.post("/auth/forgot-password", { email })
       setSuccess("Reset code generated and sent successfully!")
       
       // Store email in sessionStorage or pass via query param to prefill in reset screen
@@ -32,8 +33,9 @@ export default function ForgotPasswordPage() {
       setTimeout(() => {
         router.push(`/reset-password?email=${encodeURIComponent(email)}`)
       }, 2000)
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Something went wrong. Please try again.")
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } }
+      setError(axiosError.response?.data?.message || "Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -54,7 +56,7 @@ export default function ForgotPasswordPage() {
         <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex mb-4">
-              <img src="/logo.jpg" alt="Rexam Logo" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+              <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
             </div>
             <h1 className="text-3xl font-bold">Reset Password</h1>
             <p className="text-muted-foreground mt-2">Enter your email to receive a password reset code</p>

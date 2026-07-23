@@ -1,7 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
-import axios from "axios"
+import React, { createContext, useContext, useState } from "react"
 
 interface User {
   id: string
@@ -20,20 +19,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem("rexam_user")
-    const token = localStorage.getItem("rexam_token")
-    
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser))
-      // Potentially verify token here
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null
+    try {
+      const storedUser = localStorage.getItem("rexam_user")
+      const token = localStorage.getItem("rexam_token")
+      if (storedUser && token) {
+        return JSON.parse(storedUser)
+      }
+    } catch (e) {
+      console.error("Failed to parse stored user", e)
     }
-    setLoading(false)
-  }, [])
+    return null
+  })
+  const [loading] = useState(false)
 
   const login = (token: string, userData: User) => {
     localStorage.setItem("rexam_token", token)

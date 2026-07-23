@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, Suspense } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, KeyRound, ArrowRight, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useRouter, useSearchParams } from "next/navigation"
 import api from "@/lib/api"
@@ -12,29 +13,19 @@ function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  const [formData, setFormData] = useState({
-    email: "",
-    code: "",
-    newPassword: ""
+  const [formData, setFormData] = useState(() => {
+    const emailParam = searchParams.get("email")
+    const sessionEmail = typeof window !== "undefined" ? sessionStorage.getItem("reset_email") : null
+    return {
+      email: emailParam || sessionEmail || "",
+      code: "",
+      newPassword: ""
+    }
   })
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-
-  useEffect(() => {
-    // Attempt to load email from query params
-    const emailParam = searchParams.get("email")
-    if (emailParam) {
-      setFormData(prev => ({ ...prev, email: emailParam }))
-    } else {
-      // Fallback: check sessionStorage
-      const sessionEmail = sessionStorage.getItem("reset_email")
-      if (sessionEmail) {
-        setFormData(prev => ({ ...prev, email: sessionEmail }))
-      }
-    }
-  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +43,9 @@ function ResetPasswordForm() {
       setTimeout(() => {
         router.push("/login")
       }, 2500)
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Verification code is invalid or has expired.")
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } }
+      setError(axiosError.response?.data?.message || "Verification code is invalid or has expired.")
     } finally {
       setLoading(false)
     }
@@ -63,7 +55,7 @@ function ResetPasswordForm() {
     <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
       <div className="text-center mb-8">
         <div className="inline-flex mb-4">
-          <img src="/logo.jpg" alt="Rexam Logo" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+          <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
         </div>
         <h1 className="text-3xl font-bold">New Password</h1>
         <p className="text-muted-foreground mt-2">Enter the verification code and set your new password</p>

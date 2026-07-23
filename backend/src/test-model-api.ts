@@ -1,10 +1,14 @@
 import { PrismaClient } from '@prisma/client';
+import app from './app.js';
+import { Server } from 'http';
 
 const prisma = new PrismaClient();
 const API_URL = 'http://localhost:5000';
+let server: Server;
 
 async function runTests() {
   console.log('🧪 Starting Project Models & API End-to-End Tests...\n');
+  server = app.listen(5000);
   let testsPassed = 0;
   let totalTests = 0;
 
@@ -338,11 +342,12 @@ async function runTests() {
   }
 }
 
-runTests()
+  runTests()
   .catch((err) => {
     console.error('Fatal Test Error:', err);
     process.exit(1);
   })
   .finally(async () => {
+    if (server) server.close();
     await prisma.$disconnect();
   });

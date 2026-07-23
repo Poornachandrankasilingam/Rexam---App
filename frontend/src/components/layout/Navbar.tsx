@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Menu, X } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -22,7 +22,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/logo.jpg" alt="Rexam Logo" className="h-8 w-8 rounded-lg object-cover" />
+              <Image src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
               <span className="text-xl font-bold tracking-tight text-foreground">
                 REXAM<span className="text-primary">.AI</span>
               </span>

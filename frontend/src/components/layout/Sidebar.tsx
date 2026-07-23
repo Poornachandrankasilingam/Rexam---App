@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { 
   LayoutDashboard, 
@@ -39,7 +40,7 @@ export function Sidebar() {
     <div className="w-64 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
       <div className="p-6">
         <Link href="/" className="flex items-center space-x-2">
-          <img src="/logo.jpg" alt="Rexam Logo" className="h-8 w-8 rounded-lg object-cover" />
+          <Image src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
           <span className="text-xl font-bold tracking-tight"> REXAM </span>
         </Link>
       </div>

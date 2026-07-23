@@ -4,6 +4,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import api from "@/lib/api"
@@ -45,8 +46,9 @@ export default function LoginPage() {
       } else {
         router.push("/student")
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed. Please check your credentials.")
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } }
+      setError(axiosError.response?.data?.message || "Login failed. Please check your credentials.")
     } finally {
       setLoading(false)
     }
@@ -67,7 +69,7 @@ export default function LoginPage() {
         <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex mb-4">
-              <img src="/logo.jpg" alt="Rexam Logo" className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+              <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
             </div>
             <h1 className="text-3xl font-bold">Welcome Back</h1>
             <p className="text-muted-foreground mt-2">Log in to continue your preparation</p>
