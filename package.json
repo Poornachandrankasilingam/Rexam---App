@@ -4,7 +4,7 @@
   "description": "Rexam - AI Powered Exam Management System",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix backend\" \"next dev --webpack\"",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "build": "npm run build --prefix backend && npm run build --prefix frontend",
     "start": "next start",
     "lint": "eslint",
