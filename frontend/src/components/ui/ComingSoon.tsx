@@ -16,8 +16,10 @@ export function ComingSoon({
   title,
   description = "We are currently hard at work building this module. Check back soon for exciting updates!",
   backHref = "/student",
-  icon: Icon = Sparkles
+  icon: iconProp
 }: ComingSoonProps) {
+  const IconComponent = iconProp || Sparkles
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-12 px-4">
       <motion.div 
@@ -37,7 +39,7 @@ export function ComingSoon({
             transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
             className="inline-flex p-4 rounded-2xl bg-primary/10 border border-primary/20 mb-6 text-primary"
           >
-            <Icon className="h-10 w-10 animate-pulse" />
+            <IconComponent className="h-10 w-10 animate-pulse" />
           </motion.div>
 
           <h1 className="text-3xl font-bold tracking-tight mb-3">

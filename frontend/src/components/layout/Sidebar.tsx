@@ -48,6 +48,7 @@ export function Sidebar() {
       <nav className="flex-1 px-4 space-y-1">
         {links.map((link) => {
           const isActive = pathname === link.href
+          const LinkIcon = link.icon
           return (
             <Link
               key={link.name}
@@ -59,7 +60,7 @@ export function Sidebar() {
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
-              <link.icon className={cn("h-5 w-5", isActive ? "text-white" : "text-muted-foreground")} />
+              {LinkIcon && <LinkIcon className={cn("h-5 w-5", isActive ? "text-white" : "text-muted-foreground")} />}
               <span className="font-medium">{link.name}</span>
             </Link>
           )
