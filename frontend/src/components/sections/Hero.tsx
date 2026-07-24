@@ -55,8 +55,8 @@ export function Hero() {
               { icon: ShieldCheck, title: "AI Proctoring", desc: "Advanced facial recognition & behavior analysis to ensure exam integrity." },
               { icon: GraduationCap, title: "PYQ Bank", desc: "Access thousands of previous year papers for SSC, RRB, and more." },
               { icon: BrainCircuit, title: "AI Evaluation", desc: "Instant subject-wise analysis and AI-driven weak area identification." },
-            ].map((feature, idx) => (
-              <div key={idx} className="glass p-8 rounded-2xl text-left border border-white/10 hover:border-primary/30 transition-all group">
+            ].map((feature) => (
+              <div key={feature.title} className="glass p-8 rounded-2xl text-left border border-white/10 hover:border-primary/30 transition-all group">
                 <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-all">
                   <feature.icon className="h-6 w-6 text-primary group-hover:text-white" />
                 </div>

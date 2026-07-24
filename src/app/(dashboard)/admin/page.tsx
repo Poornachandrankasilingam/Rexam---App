@@ -47,7 +47,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <motion.div
-            key={idx}
+            key={stat.label}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.1 }}
@@ -90,8 +90,8 @@ export default function AdminDashboard() {
                   { name: "SSC CGL Practice 01", date: "Jun 12, 2026", status: "Completed", count: 1240 },
                   { name: "UPSC Prelims Mock", date: "Jul 05, 2026", status: "Upcoming", count: 4500 },
                   { name: "Railway Group D Set A", date: "Jul 10, 2026", status: "Draft", count: 0 },
-                ].map((exam, idx) => (
-                  <tr key={idx} className="hover:bg-secondary/30 transition-colors">
+                ].map((exam) => (
+                  <tr key={exam.name} className="hover:bg-secondary/30 transition-colors">
                     <td className="px-6 py-4 font-medium">{exam.name}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{exam.date}</td>
                     <td className="px-6 py-4">
@@ -121,13 +121,13 @@ export default function AdminDashboard() {
           </div>
           <div className="p-6 space-y-6">
             {[
-              { user: "Rahul K.", event: "Multiple Faces Detected", time: "2 mins ago", risk: "High" },
-              { user: "Priya S.", event: "Tab Switched 3x", time: "5 mins ago", risk: "Medium" },
-              { user: "Amit V.", event: "User Left Seat", time: "12 mins ago", risk: "Medium" },
+              { userName: "Rahul K.", event: "Multiple Faces Detected", time: "2 mins ago", risk: "High" },
+              { userName: "Priya S.", event: "Tab Switched 3x", time: "5 mins ago", risk: "Medium" },
+              { userName: "Amit V.", event: "User Left Seat", time: "12 mins ago", risk: "Medium" },
             ].map((feed, idx) => (
-              <div key={idx} className="flex items-start justify-between">
+              <div key={`${feed.userName}-${idx}`} className="flex items-start justify-between">
                 <div className="space-y-1">
-                  <p className="text-sm font-bold">{feed.user}</p>
+                  <p className="text-sm font-bold">{feed.userName}</p>
                   <p className="text-xs text-muted-foreground">{feed.event}</p>
                   <p className="text-[10px] text-muted-foreground">{feed.time}</p>
                 </div>

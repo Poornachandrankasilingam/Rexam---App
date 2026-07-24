@@ -36,7 +36,7 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
           <motion.div
-            key={idx}
+            key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
@@ -64,8 +64,8 @@ export default function StudentDashboard() {
               <Button variant="link" className="text-primary">View Calendar</Button>
             </div>
             <div className="space-y-4">
-              {upcomingExams.map((exam, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border group hover:border-primary/30 transition-all">
+              {upcomingExams.map((exam) => (
+                <div key={exam.title} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/50 border border-border group hover:border-primary/30 transition-all">
                   <div className="flex items-center space-x-4">
                     <div className="h-12 w-12 bg-background rounded-xl flex items-center justify-center border border-border">
                       <Play className="h-5 w-5 text-primary" />
@@ -104,8 +104,8 @@ export default function StudentDashboard() {
                 { subject: "Quant", topic: "Number Systems", progress: 65, color: "bg-emerald-500" },
                 { subject: "English", topic: "Error Spotting", progress: 42, color: "bg-amber-500" },
                 { subject: "Reasoning", topic: "Syllogism", progress: 78, color: "bg-green-500" },
-              ].map((area, idx) => (
-                <div key={idx} className="space-y-2">
+              ].map((area) => (
+                <div key={area.topic} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{area.topic}</span>
                     <span className="text-muted-foreground">{area.progress}%</span>
