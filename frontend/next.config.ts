@@ -14,6 +14,22 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: process.env.NEXT_PUBLIC_API_URL 
+          ? `${process.env.NEXT_PUBLIC_API_URL}/:path*`
+          : "http://localhost:5000/api/:path*",
+      },
+      {
+        source: "/health",
+        destination: process.env.NEXT_PUBLIC_API_URL 
+          ? `${process.env.NEXT_PUBLIC_API_URL}/health`
+          : "http://localhost:5000/health",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
