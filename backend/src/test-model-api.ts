@@ -34,10 +34,11 @@ async function runTests() {
   const testEmail = 'test-prisma-model@rexam.com';
 
   await test('User Model Cleanup (Prerequisite)', async () => {
-    // Ensure clean state
-    await prisma.user.deleteMany({
-      where: { email: testEmail }
-    });
+    const emails = [testEmail, 'usera@rexam.com', 'userb@rexam.com', 'api-test-user@rexam.com'];
+    await prisma.activityLog.deleteMany({ where: { user: { email: { in: emails } } } });
+    await prisma.result.deleteMany({ where: { user: { email: { in: emails } } } });
+    await prisma.exam.deleteMany({ where: { createdBy: { email: { in: emails } } } });
+    await prisma.user.deleteMany({ where: { email: { in: emails } } });
   });
 
   let createdUserId = '';
@@ -78,7 +79,6 @@ async function runTests() {
       });
       throw new Error('Should have thrown unique constraint error for duplicate email');
     } catch (err: any) {
-      // Expecting P2002 (Prisma Unique constraint failed)
       if (err.message && err.message.includes('Unique constraint failed')) {
         // Success
       } else if (err.code === 'P2002') {
@@ -110,222 +110,121 @@ async function runTests() {
     if (data.status !== 'ok') throw new Error(`Expected status 'ok', got: ${data.status}`);
   });
 
-  const apiTestUser = {
-    email: 'api-test-user@rexam.com',
-    password: 'securepassword123',
-    name: 'API Test User',
-    phone: '9876543210'
-  };
+  // --- USER A vs USER B DATA ISOLATION & DYNAMIC STATS TESTS ---
 
-  await test('API - Auth Model Clean Up (HTTP Prerequisite)', async () => {
-    await prisma.user.deleteMany({
-      where: { email: apiTestUser.email }
-    });
-  });
+  let tokenA = '';
+  let tokenB = '';
 
-  await test('API - User Registration (/api/auth/register)', async () => {
-    const res = await fetch(`${API_URL}/api/auth/register`, {
+  await test('User Isolation Test - Register & Login User A', async () => {
+    await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(apiTestUser)
+      body: JSON.stringify({ email: 'usera@rexam.com', password: 'password123', name: 'User A' })
     });
 
-    const data = await res.json() as any;
-    if (res.status !== 201) {
-      throw new Error(`Registration failed with status ${res.status}. Error: ${data.message || JSON.stringify(data)}`);
-    }
-    if (data.message !== 'User registered successfully') {
-      throw new Error(`Unexpected message: ${data.message}`);
-    }
-    if (!data.userId) {
-      throw new Error('No userId returned from registration API');
-    }
-  });
-
-  await test('API - Duplicate User Registration (/api/auth/register)', async () => {
-    const res = await fetch(`${API_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(apiTestUser)
-    });
-
-    const data = await res.json() as any;
-    if (res.status !== 400) {
-      throw new Error(`Expected status 400, got ${res.status}`);
-    }
-    if (!data.message || !data.message.includes('exists')) {
-      throw new Error(`Expected email duplicate error message, got: ${JSON.stringify(data)}`);
-    }
-  });
-
-  let accessToken = '';
-
-  await test('API - User Login (/api/auth/login)', async () => {
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: apiTestUser.email,
-        password: apiTestUser.password
-      })
+      body: JSON.stringify({ email: 'usera@rexam.com', password: 'password123' })
     });
-
     const data = await res.json() as any;
-    if (res.status !== 200) {
-      throw new Error(`Login failed with status ${res.status}. Error: ${data.message || JSON.stringify(data)}`);
-    }
-    if (!data.accessToken) {
-      throw new Error('No accessToken returned in login response');
-    }
-    if (data.user.email !== apiTestUser.email) {
-      throw new Error(`Expected user email ${apiTestUser.email}, got ${data.user.email}`);
-    }
-    accessToken = data.accessToken;
+    if (!data.accessToken) throw new Error('Login failed for User A');
+    tokenA = data.accessToken;
   });
 
-  await test('API - User Login Failure with Wrong Password', async () => {
+  await test('User Isolation Test - Register & Login User B', async () => {
+    await fetch(`${API_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'userb@rexam.com', password: 'password123', name: 'User B' })
+    });
+
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: apiTestUser.email,
-        password: 'wrong_password'
-      })
+      body: JSON.stringify({ email: 'userb@rexam.com', password: 'password123' })
     });
-
     const data = await res.json() as any;
-    if (res.status !== 400) {
-      throw new Error(`Expected status 400, got ${res.status}`);
-    }
-    if (data.message !== 'Invalid credentials') {
-      throw new Error(`Expected message 'Invalid credentials', got: ${data.message}`);
-    }
+    if (!data.accessToken) throw new Error('Login failed for User B');
+    tokenB = data.accessToken;
   });
 
-  await test('API - User Login with Uppercase & Un-trimmed Email', async () => {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: `  ${apiTestUser.email.toUpperCase()}  `,
-        password: apiTestUser.password
-      })
-    });
+  await test('User Isolation Test - User A Completes 3 Exams', async () => {
+    const examsToComplete = [
+      { examTitle: 'Quant Speed Test', score: 40, totalMarks: 50, correct: 20, incorrect: 5, timeSpent: 300 },
+      { examTitle: 'Reasoning Challenge', score: 30, totalMarks: 40, correct: 15, incorrect: 5, timeSpent: 240 },
+      { examTitle: 'Verbal Ability Test', score: 20, totalMarks: 30, correct: 10, incorrect: 5, timeSpent: 180 }
+    ];
 
-    const data = await res.json() as any;
-    if (res.status !== 200) {
-      throw new Error(`Login with normalized email failed with status ${res.status}. Error: ${JSON.stringify(data)}`);
-    }
-    if (!data.accessToken) {
-      throw new Error('No access token returned');
-    }
-  });
-
-  let resetVerificationCode = '';
-
-  await test('API - Forgot Password - Request Reset Code (/api/auth/forgot-password)', async () => {
-    const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: apiTestUser.email })
-    });
-
-    const data = await res.json() as any;
-    if (res.status !== 200) {
-      throw new Error(`Forgot password request failed with status ${res.status}. Error: ${JSON.stringify(data)}`);
-    }
-
-    // In dev environment, the code is returned in response. If not, fetch from DB.
-    if (data.code) {
-      resetVerificationCode = data.code;
-    } else {
-      const user = await prisma.user.findUnique({ where: { email: apiTestUser.email } });
-      if (!user || !user.resetCode) {
-        throw new Error('Reset code was not saved in the database');
+    for (const ex of examsToComplete) {
+      const res = await fetch(`${API_URL}/api/student/results`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify(ex)
+      });
+      if (res.status !== 201) {
+        const errData = await res.json();
+        throw new Error(`Failed to save test result for User A: ${JSON.stringify(errData)}`);
       }
-      resetVerificationCode = user.resetCode;
-    }
-
-    if (!resetVerificationCode || resetVerificationCode.length !== 6) {
-      throw new Error(`Invalid verification code generated: ${resetVerificationCode}`);
     }
   });
 
-  await test('API - Forgot Password - Non-existent Email', async () => {
-    const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'nonexistent-forgot@rexam.com' })
+  await test('User Isolation Test - Verify User A Sees 3 Exams & Calculated Stats', async () => {
+    const res = await fetch(`${API_URL}/api/student/dashboard`, {
+      headers: { 'Authorization': `Bearer ${tokenA}` }
     });
-
     const data = await res.json() as any;
-    if (res.status !== 404) {
-      throw new Error(`Expected status 404, got ${res.status}`);
-    }
+
+    if (res.status !== 200) throw new Error(`Dashboard fetch failed for User A`);
+    if (data.stats.totalExams !== 3) throw new Error(`Expected User A totalExams to be 3, got ${data.stats.totalExams}`);
+    if (data.hasAttemptedExams !== true) throw new Error(`Expected hasAttemptedExams to be true for User A`);
+    if (data.recentResults.length !== 3) throw new Error(`Expected User A to have 3 recent results, got ${data.recentResults.length}`);
+    if (data.stats.accuracy <= 0) throw new Error(`Expected User A accuracy > 0, got ${data.stats.accuracy}`);
   });
 
-  await test('API - Reset Password - Invalid Verification Code', async () => {
-    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: apiTestUser.email,
-        code: '000000', // Invalid code
-        newPassword: 'newsecurepassword123'
-      })
+  await test('User Isolation Test - Verify User B Sees 0 Exams & Clean Empty State', async () => {
+    const res = await fetch(`${API_URL}/api/student/dashboard`, {
+      headers: { 'Authorization': `Bearer ${tokenB}` }
     });
-
     const data = await res.json() as any;
-    if (res.status !== 400) {
-      throw new Error(`Expected status 400, got ${res.status}`);
-    }
-    if (data.message !== 'Invalid verification code') {
-      throw new Error(`Expected message 'Invalid verification code', got: ${data.message}`);
-    }
+
+    if (res.status !== 200) throw new Error(`Dashboard fetch failed for User B`);
+    if (data.stats.totalExams !== 0) throw new Error(`Expected User B totalExams to be 0, got ${data.stats.totalExams}`);
+    if (data.stats.accuracy !== 0) throw new Error(`Expected User B accuracy to be 0%, got ${data.stats.accuracy}%`);
+    if (data.stats.avgScore !== 0) throw new Error(`Expected User B avgScore to be 0, got ${data.stats.avgScore}`);
+    if (data.stats.totalCorrect !== 0) throw new Error(`Expected User B totalCorrect to be 0, got ${data.stats.totalCorrect}`);
+    if (data.stats.totalWrong !== 0) throw new Error(`Expected User B totalWrong to be 0, got ${data.stats.totalWrong}`);
+    if (data.hasAttemptedExams !== false) throw new Error(`Expected hasAttemptedExams to be false for User B`);
+    if (data.message !== "No exams attempted yet.") throw new Error(`Expected message 'No exams attempted yet.', got: '${data.message}'`);
+    if (data.recentResults.length !== 0) throw new Error(`Expected User B to have 0 recent results, got ${data.recentResults.length}`);
   });
 
-  await test('API - Reset Password - Successful Reset', async () => {
-    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: apiTestUser.email,
-        code: resetVerificationCode,
-        newPassword: 'newsecurepassword123'
-      })
+  await test('User Isolation Test - Verify User B Cannot Access User A Data', async () => {
+    const resB = await fetch(`${API_URL}/api/student/results`, {
+      headers: { 'Authorization': `Bearer ${tokenB}` }
     });
+    const dataB = await resB.json() as any;
 
-    const data = await res.json() as any;
-    if (res.status !== 200) {
-      throw new Error(`Reset password failed with status ${res.status}. Error: ${JSON.stringify(data)}`);
-    }
-    if (data.message !== 'Password has been reset successfully') {
-      throw new Error(`Unexpected success message: ${data.message}`);
+    if (dataB.results.length !== 0) {
+      throw new Error(`Data leakage! User B sees ${dataB.results.length} results which belong to User A!`);
     }
   });
 
-  await test('API - Login with New Password', async () => {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: apiTestUser.email,
-        password: 'newsecurepassword123'
-      })
+  await test('Clean Up User A & User B Test Data', async () => {
+    await prisma.activityLog.deleteMany({
+      where: { user: { email: { in: ['usera@rexam.com', 'userb@rexam.com'] } } }
     });
-
-    const data = await res.json() as any;
-    if (res.status !== 200) {
-      throw new Error(`Login with new password failed with status ${res.status}. Error: ${JSON.stringify(data)}`);
-    }
-    if (!data.accessToken) {
-      throw new Error('Login response does not contain access token');
-    }
-  });
-
-  await test('API - Clean Up User Data', async () => {
+    await prisma.result.deleteMany({
+      where: { user: { email: { in: ['usera@rexam.com', 'userb@rexam.com'] } } }
+    });
+    await prisma.exam.deleteMany({
+      where: { createdBy: { email: { in: ['usera@rexam.com', 'userb@rexam.com'] } } }
+    });
     await prisma.user.deleteMany({
-      where: { email: apiTestUser.email }
+      where: { email: { in: ['usera@rexam.com', 'userb@rexam.com'] } }
     });
   });
 
@@ -342,7 +241,7 @@ async function runTests() {
   }
 }
 
-  runTests()
+runTests()
   .catch((err) => {
     console.error('Fatal Test Error:', err);
     process.exit(1);

@@ -22,6 +22,7 @@ import {
   Bookmark
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import api from "@/lib/api"
 
 // Types
 type Question = {
@@ -291,8 +292,22 @@ export default function StudentPracticePage() {
   }
 
   // Submit test
-  const handleSubmitTest = () => {
+  const handleSubmitTest = async () => {
     setTestState("RESULT")
+    try {
+      const res = calculateResults()
+      const timeSpentSecs = Math.max(10, (timeLimit * 60) - timeLeftSeconds)
+      await api.post("/student/results", {
+        examTitle: testTitle,
+        score: res.score,
+        totalMarks: res.total * 2,
+        correct: res.correct,
+        incorrect: res.incorrect,
+        timeSpent: timeSpentSecs
+      })
+    } catch (err) {
+      console.error("Failed to save test result to database", err)
+    }
   }
 
   // Calculate results
