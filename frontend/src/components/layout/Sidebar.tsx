@@ -7,7 +7,8 @@ import {
   Settings, 
   LogOut,
   Shield,
-  FileText
+  FileText,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
@@ -21,28 +22,52 @@ export function Sidebar() {
     { name: "Overview", href: "/admin", icon: LayoutDashboard },
     { name: "Manage Exams", href: "/admin/exams", icon: PenTool },
     { name: "Question Bank", href: "/admin/questions", icon: BookOpen },
-    { name: "Malpractice", href: "/admin/malpractice", icon: Shield },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
+    { name: "Proctoring Logs", href: "/admin/malpractice", icon: Shield },
+    { name: "Platform Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { name: "System Settings", href: "/admin/settings", icon: Settings },
   ] : [
     { name: "Dashboard", href: "/student", icon: LayoutDashboard },
     { name: "My Exams", href: "/student/exams", icon: PenTool },
-    { name: "Practice", href: "/student/practice", icon: BookOpen },
-    { name: "PYQs", href: "/student/pyqs", icon: FileText },
-    { name: "Results", href: "/student/results", icon: BarChart3 },
+    { name: "Aptitude Practice", href: "/student/practice", icon: BookOpen },
+    { name: "PYQs Bank", href: "/student/pyqs", icon: FileText },
+    { name: "Score Analytics", href: "/student/results", icon: BarChart3 },
     { name: "Settings", href: "/student/settings", icon: Settings },
   ]
 
   return (
-    <div className="w-64 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
-      <div className="p-6">
-        <Link to="/" className="flex items-center space-x-2">
-          <img src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-          <span className="text-xl font-bold tracking-tight"> REXAM </span>
+    <div className="w-64 border-r border-white/10 glass flex flex-col h-screen fixed left-0 top-0 z-40">
+      {/* Brand Header */}
+      <div className="p-6 border-b border-white/10">
+        <Link to="/" className="flex items-center space-x-3 group">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-300"></div>
+            <img 
+              src="/logo.jpg" 
+              alt="Rexam Logo" 
+              width={36} 
+              height={36} 
+              className="relative h-9 w-9 rounded-xl object-cover border border-white/20 shadow-md" 
+            />
+          </div>
+          <span className="text-xl font-extrabold tracking-tight font-outfit text-white">
+            REXAM<span className="text-indigo-400">.AI</span>
+          </span>
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
+      {/* User Badge */}
+      <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-white truncate">{user?.name || "Aspirant"}</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
+          </div>
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        </div>
+      </div>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
         {links.map((link) => {
           const isActive = pathname === link.href
           const LinkIcon = link.icon
@@ -51,26 +76,29 @@ export function Sidebar() {
               key={link.name}
               to={link.href}
               className={cn(
-                "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200",
+                "flex items-center space-x-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all duration-200 group relative",
                 isActive 
-                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/25 border border-indigo-400/30" 
+                  : "text-slate-400 hover:bg-white/5 hover:text-white"
               )}
             >
-              {LinkIcon && <LinkIcon className={cn("h-5 w-5", isActive ? "text-white" : "text-muted-foreground")} />}
-              <span className="font-medium">{link.name}</span>
+              {LinkIcon && (
+                <LinkIcon className={cn("h-4 w-4 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400 group-hover:text-indigo-400")} />
+              )}
+              <span className="font-semibold">{link.name}</span>
             </Link>
           )
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      {/* Logout Footer */}
+      <div className="p-4 border-t border-white/10">
         <button
           onClick={logout}
-          className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+          className="flex items-center space-x-3 px-4 py-3 w-full rounded-2xl text-xs font-bold text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 border border-transparent hover:border-rose-500/20 transition-all duration-200"
         >
-          <LogOut className="h-5 w-5" />
-          <span className="font-medium">Logout</span>
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out</span>
         </button>
       </div>
     </div>
