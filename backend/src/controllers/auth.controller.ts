@@ -44,7 +44,8 @@ export const register = async (req: Request, res: Response) => {
 
     const { email, password, name, role, phone } = validationResult.data;
     const cleanEmail = email.toLowerCase().trim();
-    console.log("✅ Validation succeeded for:", { email: cleanEmail, name, role, phone });
+    const cleanPhone = phone && phone.trim() !== "" ? phone.trim() : null;
+    console.log("✅ Validation succeeded for:", { email: cleanEmail, name, role, phone: cleanPhone });
 
     try {
         // 3. Duplicate checks
@@ -55,11 +56,11 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Email already exists" });
         }
 
-        if (phone) {
-            console.log("🔍 Checking for existing phone:", phone);
-            const existingUserPhone = await prisma.user.findFirst({ where: { phone } });
+        if (cleanPhone) {
+            console.log("🔍 Checking for existing phone:", cleanPhone);
+            const existingUserPhone = await prisma.user.findFirst({ where: { phone: cleanPhone } });
             if (existingUserPhone) {
-                console.warn("⚠️ Duplicate phone detected:", phone);
+                console.warn("⚠️ Duplicate phone detected:", cleanPhone);
                 return res.status(400).json({ message: "Phone already exists" });
             }
         }
@@ -76,7 +77,7 @@ export const register = async (req: Request, res: Response) => {
                 password: hashedPassword,
                 name,
                 role: role || 'STUDENT',
-                phone: phone || null,
+                phone: cleanPhone,
             },
         });
 
