@@ -1,16 +1,12 @@
-"use client"
-
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, User, ArrowRight } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 
 export default function RegisterPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   
@@ -34,7 +30,7 @@ export default function RegisterPage() {
       console.log("✅ Registration response received:", response.data)
       
       // Redirect to login after successful registration
-      router.push("/login")
+      navigate("/login")
     } catch (err: unknown) {
       console.error("❌ Registration request failed:", err)
       const axiosError = err as { response?: { data?: { message?: string; error?: string } } }
@@ -62,7 +58,7 @@ export default function RegisterPage() {
         <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
           <div className="text-center mb-10">
             <div className="inline-flex mb-4">
-              <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+              <img src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
             </div>
             <h1 className="text-3xl font-bold">Join Rexam</h1>
             <p className="text-muted-foreground mt-2">Start your journey to excellence</p>
@@ -132,7 +128,7 @@ export default function RegisterPage() {
 
           <p className="text-center mt-8 text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary font-semibold hover:underline">
+            <Link to="/login" className="text-primary font-semibold hover:underline">
               Log in
             </Link>
           </p>

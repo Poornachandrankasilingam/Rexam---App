@@ -1,8 +1,6 @@
-"use client"
-
 import { motion } from "framer-motion"
 import { LucideIcon, Sparkles, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 
 interface ComingSoonProps {
@@ -54,7 +52,7 @@ export function ComingSoon({
             {description}
           </p>
 
-          <Link href={backHref}>
+          <Link to={backHref}>
             <Button size="lg" className="rounded-xl px-6 font-semibold shadow-lg shadow-primary/20 group">
               <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Return to Overview

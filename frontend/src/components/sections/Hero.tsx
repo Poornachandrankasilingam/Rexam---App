@@ -1,7 +1,5 @@
-"use client"
-
 import { motion } from "framer-motion"
-import Link from "next/link"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BrainCircuit, ShieldCheck, GraduationCap } from "lucide-react"
 
@@ -32,7 +30,7 @@ export function Hero() {
               and personalized evaluation for SSC, UPSC, Banking, and more.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/register">
+              <Link to="/register">
                 <Button size="lg" className="rounded-full h-14 px-8 text-lg font-semibold shadow-lg shadow-primary/25">
                   Get Started Free
                   <ArrowRight className="ml-2 h-5 w-5" />

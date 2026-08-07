@@ -1,17 +1,13 @@
-"use client"
-
 import { useState, Suspense } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, KeyRound, ArrowRight, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { useRouter, useSearchParams } from "next/navigation"
 import api from "@/lib/api"
 
 function ResetPasswordForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   
   const [formData, setFormData] = useState(() => {
     const emailParam = searchParams.get("email")
@@ -41,7 +37,7 @@ function ResetPasswordForm() {
       sessionStorage.removeItem("reset_email")
       
       setTimeout(() => {
-        router.push("/login")
+        navigate("/login")
       }, 2500)
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } }
@@ -55,7 +51,7 @@ function ResetPasswordForm() {
     <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
       <div className="text-center mb-8">
         <div className="inline-flex mb-4">
-          <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+          <img src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
         </div>
         <h1 className="text-3xl font-bold">New Password</h1>
         <p className="text-muted-foreground mt-2">Enter the verification code and set your new password</p>
@@ -131,7 +127,7 @@ function ResetPasswordForm() {
       </form>
 
       <div className="text-center mt-8">
-        <Link href="/forgot-password" className="inline-flex items-center text-sm font-semibold text-primary hover:underline group">
+        <Link to="/forgot-password" className="inline-flex items-center text-sm font-semibold text-primary hover:underline group">
           <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
           Request new code
         </Link>

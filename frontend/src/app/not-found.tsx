@@ -1,8 +1,6 @@
-"use client"
-
 import { motion } from "framer-motion"
 import { FileQuestion, ArrowLeft, Home } from "lucide-react"
-import Link from "next/link"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 
 export default function NotFound() {
@@ -42,7 +40,7 @@ export default function NotFound() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/">
+            <Link to="/">
               <Button size="lg" className="rounded-xl px-6 font-semibold shadow-lg shadow-primary/20 group w-full sm:w-auto">
                 <Home className="mr-2 h-4 w-4" />
                 Go to Home

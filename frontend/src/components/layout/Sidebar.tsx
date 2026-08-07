@@ -1,8 +1,4 @@
-"use client"
-
-import Link from "next/link"
-import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { Link, useLocation } from "react-router-dom"
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -17,7 +13,8 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
 
 export function Sidebar() {
-  const pathname = usePathname()
+  const location = useLocation()
+  const pathname = location.pathname
   const { logout, user } = useAuth()
 
   const links = user?.role === "ADMIN" ? [
@@ -39,8 +36,8 @@ export function Sidebar() {
   return (
     <div className="w-64 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
       <div className="p-6">
-        <Link href="/" className="flex items-center space-x-2">
-          <Image src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+        <Link to="/" className="flex items-center space-x-2">
+          <img src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
           <span className="text-xl font-bold tracking-tight"> REXAM </span>
         </Link>
       </div>
@@ -52,7 +49,7 @@ export function Sidebar() {
           return (
             <Link
               key={link.name}
-              href={link.href}
+              to={link.href}
               className={cn(
                 "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200",
                 isActive 

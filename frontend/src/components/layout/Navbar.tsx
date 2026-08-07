@@ -1,7 +1,4 @@
-"use client"
-
-import Link from "next/link"
-import Image from "next/image"
+import { Link } from "react-router-dom"
 import { Menu, X } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,8 +18,8 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <Image src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+            <Link to="/" className="flex items-center space-x-2">
+              <img src="/logo.jpg" alt="Rexam Logo" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
               <span className="text-xl font-bold tracking-tight text-foreground">
                 REXAM<span className="text-primary">.AI</span>
               </span>
@@ -32,15 +29,15 @@ export function Navbar() {
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
               {navLinks.map((link) => (
-                <Link
+                <a
                   key={link.name}
                   href={link.href}
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
                   {link.name}
-                </Link>
+                </a>
               ))}
-              <Link href="/login">
+              <Link to="/login">
                 <Button variant="default" size="sm" className="rounded-full px-6">
                   Login
                 </Button>
@@ -64,17 +61,17 @@ export function Navbar() {
         <div className="md:hidden glass border-b border-white/10">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navLinks.map((link) => (
-              <Link
+              <a
                 key={link.name}
                 href={link.href}
                 className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary"
                 onClick={() => setIsOpen(false)}
               >
                 {link.name}
-              </Link>
+              </a>
             ))}
             <div className="px-3 py-2">
-              <Link href="/login" className="w-full">
+              <Link to="/login" className="w-full">
                 <Button variant="default" className="w-full">
                   Login
                 </Button>

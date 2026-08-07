@@ -1,10 +1,8 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma.js';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
 
 // Registration Validation Schema
 const registerSchema = z.object({

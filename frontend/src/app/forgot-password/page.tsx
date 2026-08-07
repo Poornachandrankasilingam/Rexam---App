@@ -1,16 +1,12 @@
-"use client"
-
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, ArrowRight, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 
 export default function ForgotPasswordPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -31,7 +27,7 @@ export default function ForgotPasswordPage() {
       
       // Auto-redirect to reset password page after 2 seconds
       setTimeout(() => {
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`)
+        navigate(`/reset-password?email=${encodeURIComponent(email)}`)
       }, 2000)
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } }
@@ -56,7 +52,7 @@ export default function ForgotPasswordPage() {
         <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex mb-4">
-              <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+              <img src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
             </div>
             <h1 className="text-3xl font-bold">Reset Password</h1>
             <p className="text-muted-foreground mt-2">Enter your email to receive a password reset code</p>
@@ -101,7 +97,7 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="text-center mt-8">
-            <Link href="/login" className="inline-flex items-center text-sm font-semibold text-primary hover:underline group">
+            <Link to="/login" className="inline-flex items-center text-sm font-semibold text-primary hover:underline group">
               <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Back to Login
             </Link>

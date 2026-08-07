@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "build": "npm run build --prefix backend && npm run build --prefix frontend",
-    "start": "next start",
+    "start": "npm run preview --prefix frontend",
     "lint": "eslint",
     "test": "npm run test --prefix backend",
     "prisma:generate": "prisma generate --schema=backend/prisma/schema.prisma"
@@ -34,7 +34,6 @@
     "framer-motion": "^12.42.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.23.0",
-    "next": "16.2.10",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -46,10 +45,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "concurrently": "^8.2.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
     "nodemon": "^3.1.14",
     "tailwindcss": "^4"
   }

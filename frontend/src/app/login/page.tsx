@@ -1,17 +1,13 @@
-"use client"
-
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, ArrowRight } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 
 export default function LoginPage() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { login } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -42,9 +38,9 @@ export default function LoginPage() {
       
       // Redirect based on role
       if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-        router.push("/admin")
+        navigate("/admin")
       } else {
-        router.push("/student")
+        navigate("/student")
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } }
@@ -69,7 +65,7 @@ export default function LoginPage() {
         <div className="glass p-10 rounded-3xl border border-white/10 shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex mb-4">
-              <Image src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
+              <img src="/logo.jpg" alt="Rexam Logo" width={64} height={64} className="h-16 w-16 rounded-2xl object-cover shadow-lg" />
             </div>
             <h1 className="text-3xl font-bold">Welcome Back</h1>
             <p className="text-muted-foreground mt-2">Log in to continue your preparation</p>
@@ -134,7 +130,7 @@ export default function LoginPage() {
                 required
               />
               <div className="mt-2 text-right">
-                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                   Forgot Password?
                 </Link>
               </div>
@@ -152,7 +148,7 @@ export default function LoginPage() {
 
           <p className="text-center mt-8 text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-primary font-semibold hover:underline">
+            <Link to="/register" className="text-primary font-semibold hover:underline">
               Create one
             </Link>
           </p>
