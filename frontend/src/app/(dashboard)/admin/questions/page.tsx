@@ -1,15 +1,483 @@
 "use client"
 
-import { ComingSoon } from "@/components/ui/ComingSoon"
-import { BookOpen } from "lucide-react"
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+  BookOpen, 
+  Plus, 
+  Upload, 
+  Search, 
+  Trash2, 
+  Edit, 
+  CheckCircle, 
+  FileText, 
+  Sparkles, 
+  X, 
+  Check
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+type QuestionItem = {
+  id: string
+  subject: string
+  topic: string
+  difficulty: "Easy" | "Medium" | "Hard"
+  text: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+const INITIAL_QUESTIONS: QuestionItem[] = [
+  {
+    id: "q-admin-1",
+    subject: "Quantitative Aptitude",
+    topic: "Percentages",
+    difficulty: "Easy",
+    text: "If A's salary is 25% more than B's salary, then by how much percentage is B's salary less than A's?",
+    options: ["20%", "25%", "15%", "18%"],
+    correctIndex: 0,
+    explanation: "Percentage less = [25 / (100 + 25)] × 100 = (25 / 125) × 100 = 20%."
+  },
+  {
+    id: "q-admin-2",
+    subject: "Logical Reasoning",
+    topic: "Syllogism",
+    difficulty: "Medium",
+    text: "Statements: All Men are Mortal. Socrates is a Man. Conclusion: Socrates is Mortal.",
+    options: ["Valid", "Invalid", "Uncertain", "None of these"],
+    correctIndex: 0,
+    explanation: "Classic deductive syllogism: Major premise + Minor premise = Valid Conclusion."
+  },
+  {
+    id: "q-admin-3",
+    subject: "Verbal Ability",
+    topic: "Synonyms",
+    difficulty: "Easy",
+    text: "Select the synonym for 'CANDID':",
+    options: ["Frank", "Secretive", "Deceitful", "Shy"],
+    correctIndex: 0,
+    explanation: "'Candid' means truthful and straightforward; frank."
+  }
+]
 
 export default function AdminQuestionsPage() {
+  const [questions, setQuestions] = useState<QuestionItem[]>(INITIAL_QUESTIONS)
+  const [selectedSubject, setSelectedSubject] = useState("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showOcrModal, setShowOcrModal] = useState(false)
+
+  // Question Form
+  const [subject, setSubject] = useState("Quantitative Aptitude")
+  const [topic, setTopic] = useState("")
+  const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium")
+  const [text, setText] = useState("")
+  const [opt0, setOpt0] = useState("")
+  const [opt1, setOpt1] = useState("")
+  const [opt2, setOpt2] = useState("")
+  const [opt3, setOpt3] = useState("")
+  const [correctIndex, setCorrectIndex] = useState(0)
+  const [explanation, setExplanation] = useState("")
+
+  // Toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false)
+
+  const handleSaveQuestion = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!text || !opt0 || !opt1) return
+
+    const newQ: QuestionItem = {
+      id: `q-new-${Date.now()}`,
+      subject,
+      topic: topic || "General",
+      difficulty,
+      text,
+      options: [opt0, opt1, opt2 || "Option C", opt3 || "Option D"],
+      correctIndex: Number(correctIndex),
+      explanation: explanation || "Verified standard answer key."
+    }
+
+    setQuestions(prev => [newQ, ...prev])
+    setShowAddModal(false)
+    resetForm()
+    showToast("Added new question to bank!")
+  }
+
+  const handleOcrUpload = () => {
+    setIsOcrProcessing(true)
+    setTimeout(() => {
+      setIsOcrProcessing(false)
+      setShowOcrModal(false)
+
+      // Add mock extracted OCR questions
+      const ocrQ: QuestionItem = {
+        id: `q-ocr-${Date.now()}`,
+        subject: "Quantitative Aptitude",
+        topic: "OCR Extracted Set",
+        difficulty: "Medium",
+        text: "Extracted via OCR: A train 150m long is running at 45km/h. In how much time will it pass a man walking at 5km/h in the same direction?",
+        options: ["13.5 sec", "15 sec", "12 sec", "18 sec"],
+        correctIndex: 0,
+        explanation: "Relative speed = 45 - 5 = 40 km/h = 40 × (5/18) m/s. Time = 150 / (200/18) = 13.5 seconds."
+      }
+      setQuestions(prev => [ocrQ, ...prev])
+      showToast("OCR processing completed! Extracted 1 question.")
+    }, 2000)
+  }
+
+  const handleDeleteQuestion = (id: string) => {
+    setQuestions(prev => prev.filter(q => q.id !== id))
+    showToast("Deleted question from bank")
+  }
+
+  const resetForm = () => {
+    setText("")
+    setTopic("")
+    setOpt0("")
+    setOpt1("")
+    setOpt2("")
+    setOpt3("")
+    setExplanation("")
+  }
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 3000)
+  }
+
+  const filteredQuestions = questions.filter(q => {
+    const matchesSubject = selectedSubject === "ALL" || q.subject === selectedSubject
+    const matchesSearch = q.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          q.topic.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesSubject && matchesSearch
+  })
+
   return (
-    <ComingSoon 
-      title="Question Bank Management"
-      description="Upload questions via PDF/OCR, tag topics, define answer keys, and manage AI question generation."
-      backHref="/admin"
-      icon={BookOpen}
-    />
+    <div className="space-y-8 pb-12">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 right-6 z-50 p-4 rounded-2xl bg-emerald-600 text-white font-semibold shadow-2xl flex items-center space-x-3 border border-emerald-400/40"
+          >
+            <CheckCircle className="h-5 w-5" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 glass p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-primary/10 via-background to-secondary/30">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
+            <BookOpen className="h-3.5 w-3.5" />
+            <span>Question Repository</span>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Question Bank & AI OCR Engine</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage question bank items, configure explanations, or bulk upload test papers using AI OCR recognition.</p>
+        </div>
+
+        <div className="flex space-x-3">
+          <Button 
+            onClick={() => setShowOcrModal(true)}
+            variant="outline" 
+            className="rounded-full px-5 border-dashed font-bold"
+          >
+            <Upload className="h-4 w-4 mr-2 text-primary" />
+            OCR Bulk Upload
+          </Button>
+          <Button 
+            onClick={() => setShowAddModal(true)}
+            className="rounded-full px-6 font-bold shadow-lg shadow-primary/20"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Question
+          </Button>
+        </div>
+      </div>
+
+      {/* Search & Subject Filters */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 glass p-4 rounded-2xl border border-white/10">
+        <div className="flex items-center space-x-2 overflow-x-auto">
+          {(["ALL", "Quantitative Aptitude", "Logical Reasoning", "Verbal Ability"] as const).map(subj => (
+            <button
+              key={subj}
+              onClick={() => setSelectedSubject(subj)}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                selectedSubject === subj
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                  : "bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {subj === "ALL" ? "All Subjects" : subj}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search questions or topics..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-full bg-secondary/40 border border-border/60 text-xs focus:outline-none focus:border-primary transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Question List */}
+      <div className="space-y-4">
+        {filteredQuestions.map((q, idx) => (
+          <div key={q.id} className="glass p-6 rounded-3xl border border-white/10 space-y-4 hover:border-primary/30 transition-all">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-primary">{q.subject} • {q.topic}</span>
+              <div className="flex items-center space-x-3">
+                <span className={`px-2.5 py-0.5 rounded-full font-bold ${
+                  q.difficulty === "Easy" ? "bg-emerald-500/10 text-emerald-400" :
+                  q.difficulty === "Medium" ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
+                }`}>
+                  {q.difficulty}
+                </span>
+                <button 
+                  onClick={() => handleDeleteQuestion(q.id)}
+                  className="text-muted-foreground hover:text-red-400 p-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <p className="font-semibold text-sm text-foreground">Q{idx + 1}. {q.text}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              {q.options.map((opt, oIdx) => (
+                <div 
+                  key={oIdx} 
+                  className={`p-3 rounded-xl border ${
+                    oIdx === q.correctIndex 
+                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold" 
+                      : "bg-background/50 border-border/40 text-muted-foreground"
+                  }`}
+                >
+                  {String.fromCharCode(65 + oIdx)}. {opt}
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 rounded-xl bg-secondary/30 text-xs text-muted-foreground border border-border/40">
+              <span className="font-bold text-primary">Explanation: </span>
+              <span>{q.explanation}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add Question Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass p-8 rounded-3xl border border-white/10 max-w-xl w-full space-y-6 relative max-h-[90vh] overflow-y-auto"
+          >
+            <button 
+              onClick={() => setShowAddModal(false)}
+              className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold">Add Question to Repository</h3>
+              <p className="text-xs text-muted-foreground">Enter question text, options, and answer key explanation.</p>
+            </div>
+
+            <form onSubmit={handleSaveQuestion} className="space-y-4 text-xs font-semibold">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Subject</label>
+                  <select
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    <option value="Quantitative Aptitude">Quantitative Aptitude</option>
+                    <option value="Logical Reasoning">Logical Reasoning</option>
+                    <option value="Verbal Ability">Verbal Ability</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Topic</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Percentages"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Difficulty</label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value as any)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-muted-foreground">Question Text</label>
+                <textarea
+                  rows={3}
+                  placeholder="Enter full question text..."
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-border/80 text-sm focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Option A</label>
+                  <input
+                    type="text"
+                    value={opt0}
+                    onChange={(e) => setOpt0(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Option B</label>
+                  <input
+                    type="text"
+                    value={opt1}
+                    onChange={(e) => setOpt1(e.target.value)}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Option C</label>
+                  <input
+                    type="text"
+                    value={opt2}
+                    onChange={(e) => setOpt2(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Option D</label>
+                  <input
+                    type="text"
+                    value={opt3}
+                    onChange={(e) => setOpt3(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-muted-foreground">Correct Option</label>
+                <select
+                  value={correctIndex}
+                  onChange={(e) => setCorrectIndex(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs font-bold text-emerald-400"
+                >
+                  <option value={0}>Option A is Correct</option>
+                  <option value={1}>Option B is Correct</option>
+                  <option value={2}>Option C is Correct</option>
+                  <option value={3}>Option D is Correct</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-muted-foreground">Step-by-Step Explanation</label>
+                <textarea
+                  rows={2}
+                  placeholder="Enter detailed solution steps..."
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-border/40">
+                <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} className="rounded-xl">
+                  Cancel
+                </Button>
+                <Button type="submit" className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20">
+                  Save Question
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* OCR Bulk Upload Modal */}
+      {showOcrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass p-8 rounded-3xl border border-white/10 max-w-md w-full space-y-6 relative"
+          >
+            <button 
+              onClick={() => setShowOcrModal(false)}
+              className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-2 text-center">
+              <div className="h-16 w-16 mx-auto rounded-3xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                <Upload className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold">AI OCR Bulk Question Upload</h3>
+              <p className="text-xs text-muted-foreground">Upload question paper PDF or scanned images. Our AI automatically extracts questions, options, and answer keys.</p>
+            </div>
+
+            <div className="p-8 border-2 border-dashed border-primary/30 rounded-3xl text-center space-y-3 bg-primary/5">
+              <Sparkles className="h-8 w-8 mx-auto text-primary animate-pulse" />
+              <p className="text-xs font-semibold text-foreground">Drag & drop question paper PDF here</p>
+              <p className="text-[10px] text-muted-foreground">Supports PDF, PNG, JPG up to 25MB</p>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setShowOcrModal(false)} className="rounded-xl">
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleOcrUpload} 
+                disabled={isOcrProcessing}
+                className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20"
+              >
+                {isOcrProcessing ? "Processing OCR..." : "Start OCR Recognition"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
   )
 }

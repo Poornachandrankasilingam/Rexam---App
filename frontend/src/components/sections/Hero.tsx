@@ -36,9 +36,11 @@ export function Hero() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="rounded-full h-14 px-8 text-lg font-semibold bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
-                View Demo
-              </Button>
+              <Link to="/student/practice">
+                <Button variant="outline" size="lg" className="rounded-full h-14 px-8 text-lg font-semibold bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+                  View Demo Practice
+                </Button>
+              </Link>
             </div>
           </motion.div>
 

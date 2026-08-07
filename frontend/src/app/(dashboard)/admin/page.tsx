@@ -11,6 +11,7 @@ import {
   Upload
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Link } from "react-router-dom"
 
 export default function AdminDashboard() {
   const { user } = useAuth()
@@ -23,7 +24,7 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Portal</h1>
@@ -32,14 +33,18 @@ export default function AdminDashboard() {
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" className="rounded-xl border-dashed">
-            <Upload className="h-4 w-4 mr-2" />
-            OCR Upload
-          </Button>
-          <Button className="rounded-xl shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Exam
-          </Button>
+          <Link to="/admin/questions">
+            <Button variant="outline" className="rounded-xl border-dashed">
+              <Upload className="h-4 w-4 mr-2" />
+              OCR Upload
+            </Button>
+          </Link>
+          <Link to="/admin/exams">
+            <Button className="rounded-xl shadow-lg shadow-primary/20">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Exam
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -72,7 +77,9 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 glass rounded-3xl border border-white/10 overflow-hidden">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h2 className="text-xl font-bold">Recent Examinations</h2>
-            <Button variant="ghost" size="sm">View All</Button>
+            <Link to="/admin/exams">
+              <Button variant="ghost" size="sm">View All</Button>
+            </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -104,7 +111,9 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold">{exam.count}</td>
                     <td className="px-6 py-4">
-                      <Button variant="ghost" size="sm">Report</Button>
+                      <Link to="/admin/analytics">
+                        <Button variant="ghost" size="sm">Report</Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -138,7 +147,9 @@ export default function AdminDashboard() {
                 </span>
               </div>
             ))}
-            <Button variant="outline" className="w-full rounded-xl">View All Alerts</Button>
+            <Link to="/admin/malpractice" className="block">
+              <Button variant="outline" className="w-full rounded-xl">View All Alerts</Button>
+            </Link>
           </div>
         </div>
       </div>
