@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Play
 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 
 export default function StudentDashboard() {
@@ -84,13 +85,15 @@ export default function StudentDashboard() {
           <section className="glass p-8 rounded-3xl border border-white/10 bg-primary/5">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">Try AI Mock Test</h2>
-                <p className="text-muted-foreground">Generate a custom test based on your weak areas identified by our AI.</p>
+                <h2 className="text-2xl font-bold">Make Own Aptitude Questions & Mock Tests</h2>
+                <p className="text-muted-foreground">Create customized practice tests by subject, difficulty, and question count with real-time timers and instant step-by-step solutions.</p>
               </div>
-              <Button size="lg" className="rounded-full px-8 shadow-xl shadow-primary/20">
-                Generate Mock
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              <Link to="/student/practice">
+                <Button size="lg" className="rounded-full px-8 shadow-xl shadow-primary/20">
+                  Make Aptitude Test
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </section>
         </div>
