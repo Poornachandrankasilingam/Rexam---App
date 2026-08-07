@@ -119,30 +119,65 @@ async function runTests() {
     await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'usera@rexam.com', password: 'password123', name: 'User A' })
+      body: JSON.stringify({ email: 'usera@rexam.com', password: 'password123', name: 'User A', phone: '9876543210' })
     });
 
-    const res = await fetch(`${API_URL}/api/auth/login`, {
+    // Test Login via Email
+    const resEmail = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'usera@rexam.com', password: 'password123' })
+      body: JSON.stringify({ identifier: 'usera@rexam.com', password: 'password123' })
     });
-    const data = await res.json() as any;
-    if (!data.accessToken) throw new Error('Login failed for User A');
-    tokenA = data.accessToken;
+    const dataEmail = await resEmail.json() as any;
+    if (!dataEmail.accessToken) throw new Error('Email login failed for User A');
+
+    // Test Login via Mobile Phone Number
+    const resPhone = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: '9876543210', password: 'password123' })
+    });
+    const dataPhone = await resPhone.json() as any;
+    if (!dataPhone.accessToken) throw new Error('Mobile Phone login failed for User A');
+
+    tokenA = dataEmail.accessToken;
+  });
+
+  await test('OTP Login Test - Generate & Verify OTP for User A', async () => {
+    // 1. Generate OTP for User A using Mobile Phone Number
+    const sendRes = await fetch(`${API_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: '9876543210' })
+    });
+    const sendData = await sendRes.json() as any;
+    if (sendRes.status !== 200 || !sendData.otpCode) {
+      throw new Error(`Send OTP failed: ${JSON.stringify(sendData)}`);
+    }
+
+    // 2. Verify OTP & Log In
+    const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: '9876543210', otpCode: sendData.otpCode })
+    });
+    const verifyData = await verifyRes.json() as any;
+    if (verifyRes.status !== 200 || !verifyData.accessToken) {
+      throw new Error(`Verify OTP failed: ${JSON.stringify(verifyData)}`);
+    }
   });
 
   await test('User Isolation Test - Register & Login User B', async () => {
     await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'userb@rexam.com', password: 'password123', name: 'User B' })
+      body: JSON.stringify({ email: 'userb@rexam.com', password: 'password123', name: 'User B', phone: '9123456789' })
     });
 
     const res = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'userb@rexam.com', password: 'password123' })
+      body: JSON.stringify({ identifier: 'userb@rexam.com', password: 'password123' })
     });
     const data = await res.json() as any;
     if (!data.accessToken) throw new Error('Login failed for User B');

@@ -24,6 +24,8 @@ model User {
   subscriptions Subscription[]
   resetCode       String?
   resetCodeExpiry DateTime?
+  otpCode         String?
+  otpCodeExpiry   DateTime?
 }
 
 model Exam {
