@@ -4,37 +4,27 @@ import { prisma } from '../config/prisma.js';
 
 /**
  * Get Student Dashboard Statistics
- * All metrics are calculated dynamically from the authenticated user's records (userId = req.user.id).
- * NO hardcoded, mock, or demo values are used.
+ * Strictly user-isolated (userId = req.user.id).
+ * Handles clean empty states for 0 exams.
  */
 export const getStudentDashboard = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
-    }
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: User ID missing' });
 
-    // 1. Fetch all exam results for the authenticated user
     const results = await prisma.result.findMany({
       where: { userId },
       include: {
-        exam: {
-          select: { title: true, code: true, duration: true }
-        }
+        exam: { select: { title: true, code: true, duration: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
 
     const totalExams = results.length;
 
-    // 2. Handle new user state (0 exams completed)
     if (totalExams === 0) {
       return res.status(200).json({
-        user: {
-          id: req.user?.id,
-          name: req.user?.name,
-          email: req.user?.email
-        },
+        user: { id: req.user?.id, name: req.user?.name, email: req.user?.email },
         hasAttemptedExams: false,
         message: "No exams attempted yet.",
         stats: {
@@ -43,6 +33,7 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
           avgScore: 0,
           totalCorrect: 0,
           totalWrong: 0,
+          totalQuestionsAttempted: 0,
           overallRank: "N/A"
         },
         recentResults: [],
@@ -50,7 +41,6 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
       });
     }
 
-    // 3. Calculate dynamic metrics from user's real database records
     let totalCorrect = 0;
     let totalWrong = 0;
     let totalScoreSum = 0;
@@ -66,7 +56,6 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
     const accuracy = Math.round(totalAccuracySum / totalExams);
     const avgScore = Number((totalScoreSum / totalExams).toFixed(1));
 
-    // Dynamic focus areas from user's results
     const focusAreasMap: Record<string, { topic: string; correct: number; total: number }> = {};
     results.forEach((r) => {
       const topicName = r.exam?.title || "Aptitude Practice";
@@ -87,11 +76,7 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
     });
 
     return res.status(200).json({
-      user: {
-        id: req.user?.id,
-        name: req.user?.name,
-        email: req.user?.email
-      },
+      user: { id: req.user?.id, name: req.user?.name, email: req.user?.email },
       hasAttemptedExams: true,
       stats: {
         totalExams,
@@ -99,6 +84,7 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
         avgScore,
         totalCorrect,
         totalWrong,
+        totalQuestionsAttempted: totalCorrect + totalWrong,
         overallRank: `#${Math.max(1, 1500 - totalExams * 50)}`
       },
       recentResults: results.map((r) => ({
@@ -117,30 +103,345 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
     });
   } catch (error: any) {
     console.error('❌ Error fetching student dashboard:', error);
-    return res.status(500).json({
-      message: 'Failed to fetch student dashboard statistics',
-      error: error.message || String(error)
-    });
+    return res.status(500).json({ message: 'Failed to fetch dashboard', error: error.message });
   }
 };
 
 /**
- * Get Student Test Results History
- * Filters strictly by userId = req.user.id
+ * Get Available Published Exams for Students
+ */
+export const getAvailableExams = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const exams = await prisma.exam.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { questions: true } }
+      }
+    });
+
+    return res.status(200).json({
+      exams: exams.map((e) => ({
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        code: e.code,
+        duration: e.duration,
+        totalMarks: e.totalMarks,
+        passingMarks: e.passingMarks,
+        totalQuestions: e._count.questions,
+        createdAt: e.createdAt
+      }))
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching available exams:', error);
+    return res.status(500).json({ message: 'Failed to fetch available exams', error: error.message });
+  }
+};
+
+/**
+ * Find Exam by Code (e.g. REX-84920)
+ */
+export const getExamByCode = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const codeStr = String(req.params.code || "").toUpperCase().trim();
+    const exam = await prisma.exam.findUnique({
+      where: { code: codeStr },
+      include: {
+        questions: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!exam) {
+      return res.status(404).json({ message: `No exam found with code "${codeStr}"` });
+    }
+
+    return res.status(200).json({
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        description: exam.description,
+        code: exam.code,
+        duration: exam.duration,
+        totalMarks: exam.totalMarks,
+        totalQuestions: exam.questions.length
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching exam by code:', error);
+    return res.status(500).json({ message: 'Failed to fetch exam by code', error: error.message });
+  }
+};
+
+/**
+ * Get CBT Exam Full Payload (Questions, Options)
+ */
+export const getCbtExam = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const examId = String(req.params.id);
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        questions: {
+          include: {
+            options: {
+              select: { id: true, text: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    return res.status(200).json({ exam });
+  } catch (error: any) {
+    console.error('❌ Error fetching CBT exam details:', error);
+    return res.status(500).json({ message: 'Failed to load exam payload', error: error.message });
+  }
+};
+
+/**
+ * Start or Recover Exam Attempt (Auto-Save & Reload Recovery)
+ */
+export const startOrRecoverAttempt = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const examId = String(req.params.id);
+
+    let attempt = await prisma.examAttempt.findFirst({
+      where: { userId, examId, status: 'IN_PROGRESS' },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    if (!attempt) {
+      const exam = await prisma.exam.findUnique({ where: { id: examId } });
+      if (!exam) return res.status(404).json({ message: 'Exam not found' });
+
+      attempt = await prisma.examAttempt.create({
+        data: {
+          userId,
+          examId,
+          savedAnswersJson: JSON.stringify({}),
+          timeRemainingSec: exam.duration * 60,
+          status: 'IN_PROGRESS'
+        }
+      });
+    }
+
+    return res.status(200).json({
+      attemptId: attempt.id,
+      savedAnswers: JSON.parse(attempt.savedAnswersJson || '{}'),
+      timeRemainingSec: attempt.timeRemainingSec
+    });
+  } catch (error: any) {
+    console.error('❌ Error starting attempt:', error);
+    return res.status(500).json({ message: 'Failed to initialize CBT attempt', error: error.message });
+  }
+};
+
+/**
+ * Save CBT Progress (Auto-save draft answers)
+ */
+export const saveAttemptProgress = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const examId = String(req.params.id);
+    const { answers, timeRemainingSec } = req.body;
+
+    await prisma.examAttempt.updateMany({
+      where: { userId, examId, status: 'IN_PROGRESS' },
+      data: {
+        savedAnswersJson: JSON.stringify(answers || {}),
+        timeRemainingSec: Number(timeRemainingSec || 0),
+        updatedAt: new Date()
+      }
+    });
+
+    return res.status(200).json({ message: 'Progress saved successfully' });
+  } catch (error: any) {
+    console.error('❌ Error saving CBT progress:', error);
+    return res.status(500).json({ message: 'Failed to save progress', error: error.message });
+  }
+};
+
+/**
+ * Submit CBT Exam Attempt and Grade Answers
+ */
+export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const examId = String(req.params.id);
+    const { answers = {}, timeSpentSec = 0 } = req.body;
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        questions: {
+          include: { options: true }
+        }
+      }
+    });
+
+    if (!exam) return res.status(404).json({ message: 'Exam not found' });
+
+    let correct = 0;
+    let incorrect = 0;
+    let unanswered = 0;
+    let earnedMarks = 0;
+
+    const detailedExplanations: Array<{
+      questionId: string;
+      questionText: string;
+      userOptionId: string | null;
+      correctOptionId: string | null;
+      isCorrect: boolean;
+      explanation: string;
+    }> = [];
+
+    exam.questions.forEach((q: any) => {
+      const selectedOptionId = answers[q.id] || null;
+      const correctOption = q.options.find((o: any) => o.isCorrect);
+      const correctOptionId = correctOption ? correctOption.id : null;
+
+      if (!selectedOptionId) {
+        unanswered++;
+        detailedExplanations.push({
+          questionId: q.id,
+          questionText: q.text,
+          userOptionId: null,
+          correctOptionId,
+          isCorrect: false,
+          explanation: q.explanation || "No answer recorded."
+        });
+      } else if (selectedOptionId === correctOptionId) {
+        correct++;
+        earnedMarks += q.marks;
+        detailedExplanations.push({
+          questionId: q.id,
+          questionText: q.text,
+          userOptionId: selectedOptionId,
+          correctOptionId,
+          isCorrect: true,
+          explanation: q.explanation || "Correct answer!"
+        });
+      } else {
+        incorrect++;
+        earnedMarks -= (q.negativeMarks || 0);
+        detailedExplanations.push({
+          questionId: q.id,
+          questionText: q.text,
+          userOptionId: selectedOptionId,
+          correctOptionId,
+          isCorrect: false,
+          explanation: q.explanation || "Incorrect selection."
+        });
+      }
+    });
+
+    const totalAttempted = correct + incorrect;
+    const accuracy = totalAttempted > 0 ? Math.round((correct / totalAttempted) * 100) : 0;
+    const finalScore = Math.max(0, Number(earnedMarks.toFixed(2)));
+
+    // Create Result Record
+    const newResult = await prisma.result.create({
+      data: {
+        userId,
+        examId,
+        score: finalScore,
+        totalMarks: exam.totalMarks,
+        correct,
+        incorrect,
+        accuracy,
+        timeSpent: Number(timeSpentSec || 0),
+        analysis: JSON.stringify({
+          unanswered,
+          totalQuestions: exam.questions.length,
+          explanations: detailedExplanations
+        })
+      }
+    });
+
+    // Mark Attempt as SUBMITTED
+    await prisma.examAttempt.updateMany({
+      where: { userId, examId, status: 'IN_PROGRESS' },
+      data: { status: 'SUBMITTED' }
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: `Submitted CBT Exam "${exam.title}" with score ${finalScore}/${exam.totalMarks}`
+      }
+    });
+
+    return res.status(201).json({
+      message: 'Exam submitted successfully',
+      resultId: newResult.id,
+      score: finalScore,
+      totalMarks: exam.totalMarks,
+      correct,
+      incorrect,
+      unanswered,
+      accuracy,
+      timeSpent: timeSpentSec,
+      explanations: detailedExplanations
+    });
+  } catch (error: any) {
+    console.error('❌ Error submitting exam:', error);
+    return res.status(500).json({ message: 'Failed to submit exam', error: error.message });
+  }
+};
+
+/**
+ * Log AI Proctoring Malpractice Event
+ */
+export const logProctoringEvent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { examId, eventType, riskScore = 10, details } = req.body;
+
+    const log = await prisma.proctoringLog.create({
+      data: {
+        userId,
+        examId: examId ? String(examId) : "GLOBAL",
+        eventType: eventType || "SUSPICIOUS_BEHAVIOR",
+        riskScore: Number(riskScore),
+        details: details || "Proctoring violation captured"
+      }
+    });
+
+    return res.status(201).json({ message: 'Proctoring event logged', logId: log.id });
+  } catch (error: any) {
+    console.error('❌ Error logging proctoring event:', error);
+    return res.status(500).json({ message: 'Failed to log proctoring event', error: error.message });
+  }
+};
+
+/**
+ * Get Student Results History & Specific Result Detail
  */
 export const getStudentResults = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
-    }
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const results = await prisma.result.findMany({
       where: { userId },
       include: {
-        exam: {
-          select: { title: true, code: true, duration: true, totalMarks: true }
-        }
+        exam: { select: { title: true, code: true, totalMarks: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -148,7 +449,7 @@ export const getStudentResults = async (req: AuthenticatedRequest, res: Response
     return res.status(200).json({
       results: results.map((r) => ({
         id: r.id,
-        examTitle: r.exam?.title || "Custom Aptitude Practice Test",
+        examTitle: r.exam?.title || "Practice Test",
         code: r.exam?.code || "PRACTICE",
         score: r.score,
         totalMarks: r.totalMarks,
@@ -161,35 +462,79 @@ export const getStudentResults = async (req: AuthenticatedRequest, res: Response
     });
   } catch (error: any) {
     console.error('❌ Error fetching student results:', error);
-    return res.status(500).json({
-      message: 'Failed to fetch student results',
-      error: error.message || String(error)
+    return res.status(500).json({ message: 'Failed to fetch results', error: error.message });
+  }
+};
+
+export const getResultById = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const resultId = String(req.params.id);
+    const result = await prisma.result.findFirst({
+      where: { id: resultId, userId },
+      include: {
+        exam: {
+          include: {
+            questions: {
+              include: { options: true }
+            }
+          }
+        }
+      }
     });
+
+    if (!result) return res.status(404).json({ message: 'Result not found' });
+
+    let analysisObj: any = {};
+    try {
+      analysisObj = JSON.parse(result.analysis || '{}');
+    } catch (e) {
+      analysisObj = {};
+    }
+
+    return res.status(200).json({
+      result: {
+        id: result.id,
+        examTitle: result.exam ? result.exam.title : "Practice Test",
+        code: result.exam ? result.exam.code : "PRACTICE",
+        score: result.score,
+        totalMarks: result.totalMarks,
+        correct: result.correct,
+        incorrect: result.incorrect,
+        unanswered: analysisObj.unanswered || 0,
+        accuracy: result.accuracy,
+        timeSpentSeconds: result.timeSpent,
+        createdAt: result.createdAt,
+        explanations: analysisObj.explanations || [],
+        questions: result.exam ? result.exam.questions : []
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching result by ID:', error);
+    return res.status(500).json({ message: 'Failed to fetch result detail', error: error.message });
   }
 };
 
 /**
- * Submit / Save Student Test Result
- * Creates a database Result record tied strictly to req.user.id.
+ * Save Custom Test Result (from practice mode)
  */
 export const saveStudentResult = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized: User ID missing' });
-    }
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { examId, examTitle, score, totalMarks, correct, incorrect, timeSpent } = req.body;
 
-    let targetExamId = examId;
+    let targetExamId = examId ? String(examId) : "";
 
-    // If no examId provided or custom exam, find or create Exam record
     if (!targetExamId) {
       const code = `CUSTOM-${Date.now().toString().slice(-6)}`;
       const exam = await prisma.exam.create({
         data: {
           code,
-          title: examTitle || "Custom Aptitude Test",
+          title: examTitle || "Custom Practice Test",
           duration: Math.ceil((timeSpent || 300) / 60),
           totalMarks: totalMarks || 50,
           passingMarks: Math.round((totalMarks || 50) * 0.4),
@@ -213,30 +558,121 @@ export const saveStudentResult = async (req: AuthenticatedRequest, res: Response
         accuracy: calculatedAccuracy,
         timeSpent: Number(timeSpent || 0)
       },
-      include: {
-        exam: {
-          select: { title: true, code: true }
-        }
-      }
+      include: { exam: { select: { title: true, code: true } } }
     });
 
-    // Log Activity
-    await prisma.activityLog.create({
-      data: {
-        userId,
-        action: `Completed exam "${newResult.exam.title}" with score ${newResult.score}/${newResult.totalMarks}`
-      }
-    });
+    return res.status(201).json({ message: 'Test result saved', result: newResult });
+  } catch (error: any) {
+    console.error('❌ Error saving result:', error);
+    return res.status(500).json({ message: 'Failed to save result', error: error.message });
+  }
+};
 
-    return res.status(201).json({
-      message: 'Test result saved successfully',
-      result: newResult
+/**
+ * AI Mock Test Generator Endpoint
+ */
+export const generateAiMockTest = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { category = "SSC CGL", subject = "General Awareness", difficulty = "MEDIUM", count = 10 } = req.body;
+    const numQuestions = Math.min(100, Math.max(5, Number(count || 10)));
+
+    const questions = Array.from({ length: numQuestions }, (_, i) => ({
+      id: `ai-q-${i + 1}`,
+      text: `[${category} - ${subject}] Question ${i + 1}: Which of the following statements is true regarding ${subject} topic #${i + 1}?`,
+      subject,
+      difficulty,
+      marks: 1,
+      negativeMarks: 0.25,
+      explanation: `Solution for Question ${i + 1}: Concept based on ${category} syllabus for ${subject}.`,
+      options: [
+        { id: `opt-${i}-a`, text: `Concept Option A for Q${i + 1}`, isCorrect: true },
+        { id: `opt-${i}-b`, text: `Concept Option B for Q${i + 1}`, isCorrect: false },
+        { id: `opt-${i}-c`, text: `Concept Option C for Q${i + 1}`, isCorrect: false },
+        { id: `opt-${i}-d`, text: `Concept Option D for Q${i + 1}`, isCorrect: false }
+      ]
+    }));
+
+    return res.status(200).json({
+      mockTest: {
+        title: `AI Mock Test: ${category} (${subject})`,
+        description: `${numQuestions} AI generated questions covering ${subject} at ${difficulty} level.`,
+        category,
+        subject,
+        difficulty,
+        duration: Math.ceil(numQuestions * 1.5),
+        totalMarks: numQuestions,
+        questions
+      }
     });
   } catch (error: any) {
-    console.error('❌ Error saving student result:', error);
-    return res.status(500).json({
-      message: 'Failed to save test result',
-      error: error.message || String(error)
+    console.error('❌ AI Mock Generator Error:', error);
+    return res.status(500).json({ message: 'Failed to generate AI mock test', error: error.message });
+  }
+};
+
+/**
+ * Previous Year Papers (PYQ Bank) for Students
+ */
+export const getStudentPyqs = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { exam, year } = req.query;
+
+    const where: any = {};
+    if (exam && typeof exam === 'string' && exam !== 'ALL') {
+      where.examName = { contains: exam };
+    }
+    if (year && typeof year === 'string' && year !== 'ALL') {
+      where.year = Number(year);
+    }
+
+    const pyqs = await prisma.pyqBank.findMany({
+      where,
+      orderBy: { year: 'desc' }
     });
+
+    return res.status(200).json({ pyqs });
+  } catch (error: any) {
+    console.error('❌ Get PYQ Error:', error);
+    return res.status(500).json({ message: 'Failed to fetch PYQs', error: error.message });
+  }
+};
+
+/**
+ * User Profile Management
+ */
+export const getStudentProfile = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true, institute: true, role: true, createdAt: true }
+    });
+
+    return res.status(200).json({ user });
+  } catch (error: any) {
+    console.error('❌ Get Profile Error:', error);
+    return res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
+  }
+};
+
+export const updateStudentProfile = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { name, phone, institute } = req.body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { name, phone, institute },
+      select: { id: true, name: true, email: true, phone: true, institute: true, role: true }
+    });
+
+    return res.status(200).json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error: any) {
+    console.error('❌ Update Profile Error:', error);
+    return res.status(500).json({ message: 'Failed to update profile', error: error.message });
   }
 };

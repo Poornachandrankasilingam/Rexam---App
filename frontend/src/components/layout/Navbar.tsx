@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { Menu, X, ArrowRight, Sparkles } from "lucide-react"
+import { Menu, X, ArrowRight } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
@@ -7,10 +7,11 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
 
   const navLinks = [
-    { name: "Exams Portal", href: "/student/exams" },
-    { name: "Aptitude Engine", href: "/student/practice" },
+    { name: "Home", href: "/" },
+    { name: "About", href: "/about" },
+    { name: "Contact", href: "/contact" },
+    { name: "Available Exams", href: "/student/exams" },
     { name: "PYQs Bank", href: "/student/pyqs" },
-    { name: "Score Analytics", href: "/student/results" },
   ]
 
   return (

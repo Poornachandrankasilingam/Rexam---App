@@ -7,6 +7,7 @@ dotenv.config();
 
 import authRoutes from './routes/auth.routes.js';
 import studentRoutes from './routes/student.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(cookieParser());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check and root API endpoint
 app.get('/health', (req, res) => {

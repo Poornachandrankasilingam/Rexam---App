@@ -22,6 +22,7 @@ model User {
   proctoringLogs ProctoringLog[]
   activityLogs  ActivityLog[]
   subscriptions Subscription[]
+  attempts      ExamAttempt[]
   resetCode       String?
   resetCodeExpiry DateTime?
   otpCode         String?
@@ -44,6 +45,7 @@ model Exam {
   createdById   String
   results       Result[]
   proctoringLogs ProctoringLog[]
+  attempts      ExamAttempt[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }
@@ -148,3 +150,17 @@ model Subscription {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+model ExamAttempt {
+  id               String   @id @default(uuid())
+  user             User     @relation(fields: [userId], references: [id])
+  userId           String
+  exam             Exam     @relation(fields: [examId], references: [id])
+  examId           String
+  savedAnswersJson String   // JSON string of saved responses
+  status           String   @default("IN_PROGRESS") // IN_PROGRESS, SUBMITTED
+  timeRemainingSec Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
