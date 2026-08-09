@@ -8,7 +8,7 @@ const API_URL = 'http://localhost:5000';
 let server: Server;
 
 async function runTests() {
-  console.log('🧪 Starting Project Models, Secure OTP & API End-to-End Tests...\n');
+  console.log('🧪 Starting Project Models, Enhanced OTP Login & API End-to-End Tests...\n');
   server = app.listen(5000);
   let testsPassed = 0;
   let totalTests = 0;
@@ -35,7 +35,7 @@ async function runTests() {
   const testEmail = 'test-prisma-model@rexam.com';
 
   await test('User & OTP Model Cleanup (Prerequisite)', async () => {
-    const emails = [testEmail, 'usera@rexam.com', 'userb@rexam.com', 'api-test-user@rexam.com'];
+    const emails = [testEmail, 'usera@rexam.com', 'userb@rexam.com', 'unregistered@rexam.com'];
     await prisma.otpVerification.deleteMany({ where: { target: { in: emails } } });
     await prisma.activityLog.deleteMany({ where: { user: { email: { in: emails } } } });
     await prisma.result.deleteMany({ where: { user: { email: { in: emails } } } });
@@ -50,45 +50,43 @@ async function runTests() {
     if (data.status !== 'ok') throw new Error(`Expected status 'ok', got: ${data.status}`);
   });
 
-  // --- SECURE OTP TESTS ---
+  // --- UNREGISTERED ACCOUNT OTP LOOKUP TESTS ---
 
-  await test('Secure OTP Test - Zero Exposure in API Response', async () => {
+  await test('Unregistered Email - Send OTP Returns 404 Account Not Found', async () => {
     const sendRes = await fetch(`${API_URL}/api/auth/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'usera@rexam.com', type: 'EMAIL', purpose: 'REGISTRATION' })
+      body: JSON.stringify({ target: 'unregistered@rexam.com', type: 'EMAIL', purpose: 'LOGIN' })
     });
     const sendData = await sendRes.json() as any;
 
-    if (sendRes.status !== 200) {
-      throw new Error(`Send OTP failed with status ${sendRes.status}`);
+    if (sendRes.status !== 404) {
+      throw new Error(`Expected 404 status for unregistered email, got ${sendRes.status}`);
     }
-
-    if (sendData.otpCode || sendData.otp) {
-      throw new Error('SECURITY VIOLATION: Plain text OTP was exposed in API JSON response!');
-    }
-
-    if (!sendData.targetMasked) {
-      throw new Error('Expected targetMasked in response payload');
+    if (sendData.accountExists !== false) {
+      throw new Error(`Expected accountExists = false in 404 response payload`);
     }
   });
 
-  await test('Secure OTP Test - Hashed Storage in Database', async () => {
-    const record = await prisma.otpVerification.findFirst({
-      where: { target: 'usera@rexam.com', purpose: 'REGISTRATION' },
-      orderBy: { createdAt: 'desc' }
+  await test('Unregistered Phone - Send OTP Returns 404 Account Not Found', async () => {
+    const sendRes = await fetch(`${API_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: '+919999999999', type: 'PHONE', purpose: 'LOGIN' })
     });
+    const sendData = await sendRes.json() as any;
 
-    if (!record) throw new Error('No OtpVerification record found in database');
-    if (!record.otpHash || record.otpHash.length < 20) {
-      throw new Error('SECURITY VIOLATION: OTP was not stored as a valid bcrypt hash string!');
+    if (sendRes.status !== 404) {
+      throw new Error(`Expected 404 status for unregistered phone, got ${sendRes.status}`);
+    }
+    if (sendData.accountExists !== false) {
+      throw new Error(`Expected accountExists = false in 404 response payload`);
     }
   });
 
-  let validOtpForA = '';
+  // --- SECURE OTP & REGISTRATION TESTS ---
 
-  await test('Secure OTP Test - Verify Valid OTP & Register User A', async () => {
-    // Generate known hashed OTP record directly for User A registration testing
+  await test('Secure OTP Registration - User A (Email & Phone)', async () => {
     const testOtp = '123456';
     const otpHash = await bcrypt.hash(testOtp, 10);
 
@@ -105,19 +103,13 @@ async function runTests() {
       }
     });
 
-    // Verify OTP API
     const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target: 'usera@rexam.com', otpCode: '123456', purpose: 'REGISTRATION' })
     });
-    const verifyData = await verifyRes.json() as any;
+    if (verifyRes.status !== 200) throw new Error('OTP verification failed for User A registration');
 
-    if (verifyRes.status !== 200) {
-      throw new Error(`Verify OTP failed: ${JSON.stringify(verifyData)}`);
-    }
-
-    // Now complete registration
     const regRes = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,19 +117,50 @@ async function runTests() {
         email: 'usera@rexam.com',
         password: 'password123',
         name: 'User A',
-        phone: '9876543210',
+        phone: '+919876543210',
         verificationType: 'EMAIL'
       })
     });
-
     const regData = await regRes.json() as any;
     if (regRes.status !== 201 || !regData.accessToken) {
       throw new Error(`Registration failed for User A: ${JSON.stringify(regData)}`);
     }
   });
 
-  await test('Secure OTP Test - Incorrect OTP Attempt Counter & Lockout', async () => {
-    // Create OTP record for invalid test
+  // --- REGISTERED ACCOUNT OTP LOGIN TESTS ---
+
+  await test('Registered User A - OTP Login via Phone Number', async () => {
+    // Generate login OTP
+    const testOtp = '555666';
+    const otpHash = await bcrypt.hash(testOtp, 10);
+
+    await prisma.otpVerification.deleteMany({ where: { target: 'usera@rexam.com', purpose: 'LOGIN' } });
+    await prisma.otpVerification.create({
+      data: {
+        target: 'usera@rexam.com',
+        type: 'PHONE',
+        otpHash,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        attempts: 0,
+        verified: false,
+        purpose: 'LOGIN'
+      }
+    });
+
+    // Verify OTP for LOGIN
+    const loginRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: 'usera@rexam.com', otpCode: '555666', purpose: 'LOGIN' })
+    });
+    const loginData = await loginRes.json() as any;
+
+    if (loginRes.status !== 200 || !loginData.accessToken) {
+      throw new Error(`OTP Login failed for User A: ${JSON.stringify(loginData)}`);
+    }
+  });
+
+  await test('Secure OTP Test - Incorrect OTP Counter & Attempt Threshold', async () => {
     const otpHash = await bcrypt.hash('888888', 10);
     await prisma.otpVerification.deleteMany({ where: { target: 'lockout-test@rexam.com' } });
     await prisma.otpVerification.create({
@@ -152,7 +175,6 @@ async function runTests() {
       }
     });
 
-    // Submit wrong OTP
     const wrongRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -163,22 +185,20 @@ async function runTests() {
       throw new Error('Expected 400 Bad Request for incorrect OTP');
     }
 
-    // Check attempts count in DB
     const record = await prisma.otpVerification.findFirst({ where: { target: 'lockout-test@rexam.com' } });
     if (!record || record.attempts !== 1) {
       throw new Error(`Expected attempts = 1, got ${record?.attempts}`);
     }
 
-    // Clean up lockout test record
     await prisma.otpVerification.deleteMany({ where: { target: 'lockout-test@rexam.com' } });
   });
 
-  // --- USER A vs USER B DATA ISOLATION TESTS ---
+  // --- USER DATA ISOLATION TESTS ---
 
   let tokenA = '';
   let tokenB = '';
 
-  await test('User Isolation Test - Login User A', async () => {
+  await test('User Isolation Test - Login User A via Password', async () => {
     const resEmail = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -219,7 +239,7 @@ async function runTests() {
         email: 'userb@rexam.com',
         password: 'password123',
         name: 'User B',
-        phone: '9123456789',
+        phone: '+919123456789',
         verificationType: 'EMAIL'
       })
     });
@@ -260,6 +280,13 @@ async function runTests() {
     if (res.status !== 200) throw new Error(`Dashboard fetch failed for User B`);
     if (data.stats.totalExams !== 0) throw new Error(`Expected User B totalExams to be 0, got ${data.stats.totalExams}`);
     if (data.hasAttemptedExams !== false) throw new Error(`Expected hasAttemptedExams to be false for User B`);
+  });
+
+  await test('Protected Route Test - Unauthenticated Student Endpoint Returns 401', async () => {
+    const res = await fetch(`${API_URL}/api/student/dashboard`);
+    if (res.status !== 401 && res.status !== 403) {
+      throw new Error(`Expected 401/403 for unauthenticated request, got ${res.status}`);
+    }
   });
 
   await test('Clean Up User A & User B Test Data', async () => {

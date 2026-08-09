@@ -6,6 +6,7 @@ import { Mail, Lock, Phone, ArrowRight, Shield, GraduationCap, KeyRound, CheckCi
 import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { OtpInputModal } from "@/components/auth/OtpInputModal"
+import { AccountNotFoundModal } from "@/components/auth/AccountNotFoundModal"
 import api from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 
@@ -25,6 +26,11 @@ export default function LoginPage() {
   const [targetMasked, setTargetMasked] = useState("")
   const [verifyingOtp, setVerifyingOtp] = useState(false)
   const [otpError, setOtpError] = useState<string | null>(null)
+
+  // Account Not Found Modal State
+  const [showAccountNotFoundModal, setShowAccountNotFoundModal] = useState(false)
+  const [unregisteredTarget, setUnregisteredTarget] = useState("")
+  const [unregisteredType, setUnregisteredType] = useState<'EMAIL' | 'PHONE'>('EMAIL')
 
   const handleQuickDemo = (role: "STUDENT" | "ADMIN") => {
     if (role === "ADMIN") {
@@ -77,14 +83,20 @@ export default function LoginPage() {
 
     try {
       const res = await api.post("/auth/send-otp", {
-        identifier,
+        identifier: identifier.trim(),
         purpose: "LOGIN"
       })
       setTargetMasked(res.data.targetMasked || identifier)
       setShowOtpModal(true)
-    } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } }
-      setError(axiosError.response?.data?.message || "No registered account found with provided Email or Phone.")
+    } catch (err: any) {
+      if (err.response?.status === 404 || err.response?.data?.accountExists === false) {
+        const targetType: 'EMAIL' | 'PHONE' = err.response?.data?.targetType || (identifier.includes('@') ? 'EMAIL' : 'PHONE')
+        setUnregisteredTarget(identifier.trim())
+        setUnregisteredType(targetType)
+        setShowAccountNotFoundModal(true)
+      } else {
+        setError(err.response?.data?.message || "Failed to send OTP. Please check your details and try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -315,6 +327,14 @@ export default function LoginPage() {
         loading={verifyingOtp}
         error={otpError}
         title="Login OTP Verification"
+      />
+
+      {/* Account Not Found Modal */}
+      <AccountNotFoundModal
+        isOpen={showAccountNotFoundModal}
+        onClose={() => setShowAccountNotFoundModal(false)}
+        target={unregisteredTarget}
+        targetType={unregisteredType}
       />
     </div>
   )

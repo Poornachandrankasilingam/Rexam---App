@@ -56,7 +56,8 @@ export const sendOtp = async (req: Request, res: Response) => {
     }
 
     const cleanTarget = rawTarget.toLowerCase().trim();
-    const targetType: 'EMAIL' | 'PHONE' = rawType.toUpperCase() === 'PHONE' ? 'PHONE' : 'EMAIL';
+    const cleanPhoneTarget = rawTarget.trim();
+    const targetType: 'EMAIL' | 'PHONE' = rawType.toUpperCase() === 'PHONE' || (!rawTarget.includes('@') && /^\+?\d+$/.test(cleanPhoneTarget)) ? 'PHONE' : 'EMAIL';
 
     // If purpose is LOGIN or FORGOT_PASSWORD, verify user exists
     let existingUser = null;
@@ -65,13 +66,21 @@ export const sendOtp = async (req: Request, res: Response) => {
         where: {
           OR: [
             { email: cleanTarget },
-            { phone: cleanTarget }
+            { phone: cleanTarget },
+            { phone: cleanPhoneTarget }
           ]
         }
       });
 
       if (!existingUser) {
-        return res.status(404).json({ message: "No registered account found with provided Email or Phone" });
+        console.warn(`⚠️ Account not found for ${cleanTarget}`);
+        return res.status(404).json({
+          accountExists: false,
+          message: "Account not found",
+          error: "This email or mobile number is not registered with Rexam.",
+          target: rawTarget.trim(),
+          targetType
+        });
       }
     }
 
@@ -113,6 +122,7 @@ export const sendOtp = async (req: Request, res: Response) => {
     console.log("-----------------------------------------");
 
     return res.status(200).json({
+      accountExists: true,
       message: "OTP sent successfully.",
       targetMasked: maskTarget(cleanTarget, targetType),
       type: targetType,

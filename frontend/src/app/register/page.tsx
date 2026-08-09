@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { OtpInputModal } from "@/components/auth/OtpInputModal"
 import { useAuth } from "@/context/AuthContext"
@@ -9,6 +9,7 @@ import api from "@/lib/api"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login: authContextLogin } = useAuth()
 
   const [loading, setLoading] = useState(false)
@@ -22,6 +23,28 @@ export default function RegisterPage() {
     confirmPassword: "",
     verificationType: "EMAIL" as "EMAIL" | "PHONE"
   })
+
+  // Pre-fill target and type from query parameters if redirected from Account Not Found
+  useEffect(() => {
+    const prefilledTarget = searchParams.get("target")
+    const prefilledType = searchParams.get("type") as "EMAIL" | "PHONE" | null
+
+    if (prefilledTarget) {
+      if (prefilledType === "PHONE" || (!prefilledTarget.includes("@") && /^\+?\d+$/.test(prefilledTarget.trim()))) {
+        setFormData((prev) => ({
+          ...prev,
+          phone: prefilledTarget,
+          verificationType: "PHONE"
+        }))
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          email: prefilledTarget,
+          verificationType: "EMAIL"
+        }))
+      }
+    }
+  }, [searchParams])
 
   // OTP Modal State
   const [showOtpModal, setShowOtpModal] = useState(false)
