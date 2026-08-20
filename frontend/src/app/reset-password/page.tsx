@@ -87,22 +87,6 @@ function ResetPasswordForm() {
 
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
-            <KeyRound className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            placeholder="6-Digit Reset Code"
-            maxLength={6}
-            className="w-full pl-11 pr-4 py-3.5 bg-background/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tracking-widest font-mono text-center text-lg"
-            value={formData.code}
-            onChange={(e) => setFormData({ ...formData, code: e.target.value.replace(/\D/g, '') })}
-            required
-            disabled={loading || !!success}
-          />
-        </div>
-
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
             <Lock className="h-5 w-5" />
           </div>
           <input

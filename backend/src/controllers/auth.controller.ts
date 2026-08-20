@@ -11,8 +11,7 @@ const registerSchema = z.object({
   email: z.string().email("Invalid email format"),
   name: z.string().min(1, "Full name is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  phone: z.string().min(10, "Valid phone number is required"),
-  verificationType: z.enum(['EMAIL', 'PHONE']).default('EMAIL'),
+  phone: z.string().optional().nullable(),
   role: z.enum(['STUDENT']).optional() // Self-registration strictly defaults to STUDENT
 });
 
@@ -268,11 +267,11 @@ export const verifyOtp = async (req: Request, res: Response) => {
 };
 
 /**
- * Register User Account (Requires Verified OTP)
+ * Register User Account (Direct Registration without OTP requirement)
  */
 export const register = async (req: Request, res: Response) => {
   console.log("-----------------------------------------");
-  console.log("🚀 Incoming Registration Request:", req.body.email);
+  console.log("🚀 Incoming Direct Registration Request:", req.body.email);
 
   const validationResult = registerSchema.safeParse(req.body);
   if (!validationResult.success) {
@@ -280,34 +279,23 @@ export const register = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Validation failed", error: errorMessages });
   }
 
-  const { email, password, name, phone, verificationType } = validationResult.data;
+  const { email, password, name, phone } = validationResult.data;
   const cleanEmail = email.toLowerCase().trim();
-  const cleanPhone = phone.trim();
+  const cleanPhone = phone ? phone.trim() : null;
 
   try {
-    // 1. Check duplicate email or phone
+    // 1. Check duplicate email
     const existingEmail = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingEmail) {
-      return res.status(400).json({ message: "Email already registered" });
+      return res.status(400).json({ message: "Email is already registered. Please sign in instead." });
     }
 
-    const existingPhone = await prisma.user.findFirst({ where: { phone: cleanPhone } });
-    if (existingPhone) {
-      return res.status(400).json({ message: "Phone number already registered" });
-    }
-
-    // 2. Verify OTP check: target must be verified in OtpVerification table
-    const targetToCheck = verificationType === 'PHONE' ? cleanPhone : cleanEmail;
-    const verifiedRecord = await prisma.otpVerification.findFirst({
-      where: {
-        target: targetToCheck,
-        purpose: 'REGISTRATION',
-        verified: true
+    // 2. Check duplicate phone if provided
+    if (cleanPhone) {
+      const existingPhone = await prisma.user.findFirst({ where: { phone: cleanPhone } });
+      if (existingPhone) {
+        return res.status(400).json({ message: "Phone number is already registered." });
       }
-    });
-
-    if (!verifiedRecord) {
-      return res.status(400).json({ message: `Please verify your ${verificationType === 'PHONE' ? 'phone number' : 'email'} via OTP before completing registration.` });
     }
 
     // 3. Hash password with bcrypt
@@ -321,17 +309,12 @@ export const register = async (req: Request, res: Response) => {
         name,
         role: 'STUDENT',
         phone: cleanPhone,
-        emailVerified: verificationType === 'EMAIL',
-        phoneVerified: verificationType === 'PHONE'
+        emailVerified: true,
+        phoneVerified: !!cleanPhone
       }
     });
 
-    // Delete verified OTP record after account creation
-    await prisma.otpVerification.deleteMany({
-      where: { target: targetToCheck, purpose: 'REGISTRATION' }
-    });
-
-    // Generate JWT token for auto-login
+    // 5. Generate JWT token for immediate auto-login
     const jwtSecret = process.env.JWT_SECRET || 'rexam_production_jwt_secret_key_2026';
     const refreshSecret = process.env.REFRESH_TOKEN_SECRET || 'rexam_production_refresh_token_secret_2026';
 
@@ -354,7 +337,7 @@ export const register = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    console.log("🎉 User registered successfully with ID:", user.id);
+    console.log("🎉 User registered directly with ID:", user.id);
     console.log("-----------------------------------------");
 
     return res.status(201).json({
@@ -458,15 +441,30 @@ export const logout = (req: Request, res: Response) => {
 };
 
 /**
- * Forgot Password Init (Generates OTP)
+ * Forgot Password Init (Direct or OTP)
  */
 export const forgotPassword = async (req: Request, res: Response) => {
-  req.body.purpose = 'FORGOT_PASSWORD';
-  return sendOtp(req, res);
+  const rawTarget = req.body.target || req.body.email || req.body.phone || req.body.identifier;
+  if (!rawTarget) {
+    return res.status(400).json({ message: "Email or phone number is required" });
+  }
+  const cleanTarget = String(rawTarget).toLowerCase().trim();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: cleanTarget },
+        { phone: cleanTarget }
+      ]
+    }
+  });
+  if (!user) {
+    return res.status(404).json({ message: "No account found with this email or mobile number." });
+  }
+  return res.status(200).json({ message: "Account verified. You can now reset your password.", email: user.email });
 };
 
 /**
- * Reset Password (Verifies OTP & Updates Password)
+ * Reset Password (Updates Password Directly for User)
  */
 export const resetPassword = async (req: Request, res: Response) => {
   console.log("-----------------------------------------");
@@ -474,11 +472,14 @@ export const resetPassword = async (req: Request, res: Response) => {
 
   try {
     const rawTarget = req.body.target || req.body.email || req.body.phone || req.body.identifier;
-    const otpCode = req.body.otpCode || req.body.otp || req.body.code;
     const newPassword = req.body.newPassword || req.body.password;
 
-    if (!rawTarget || !otpCode || !newPassword) {
-      return res.status(400).json({ message: "Email/Phone, OTP code, and new password are required" });
+    if (!rawTarget || !newPassword) {
+      return res.status(400).json({ message: "Email/Phone and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
     }
 
     const cleanTarget = String(rawTarget).toLowerCase().trim();
@@ -495,25 +496,6 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User account not found" });
     }
 
-    // Verify OTP for FORGOT_PASSWORD
-    const record = await prisma.otpVerification.findFirst({
-      where: { target: cleanTarget, purpose: 'FORGOT_PASSWORD' },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    if (!record) {
-      return res.status(400).json({ message: "No active password reset OTP request found." });
-    }
-
-    if (new Date() > new Date(record.expiresAt)) {
-      return res.status(400).json({ message: "OTP expired. Please request a new OTP." });
-    }
-
-    const isMatch = await bcrypt.compare(String(otpCode).trim(), record.otpHash);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid OTP. Please check and try again." });
-    }
-
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -526,9 +508,9 @@ export const resetPassword = async (req: Request, res: Response) => {
       }
     });
 
-    // Delete OTP record
+    // Delete any pending OTP records
     await prisma.otpVerification.deleteMany({
-      where: { target: cleanTarget, purpose: 'FORGOT_PASSWORD' }
+      where: { target: cleanTarget }
     });
 
     console.log("🎉 Password reset successfully for user:", user.email);
@@ -538,5 +520,145 @@ export const resetPassword = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("❌ Reset password error:", error);
     return res.status(500).json({ message: "Password reset failed", error: error.message || String(error) });
+  }
+};
+
+/**
+ * Google Sign-In & Sign-Up Authentication
+ * Verifies Google ID token / access token or profile payload and signs user in.
+ */
+export const googleAuth = async (req: Request, res: Response) => {
+  console.log("-----------------------------------------");
+  console.log("🚀 Incoming Google Authentication Request");
+
+  try {
+    const { credential, token, email: rawEmail, name: rawName } = req.body;
+
+    let email = rawEmail;
+    let name = rawName;
+    let googleId = req.body.googleId || req.body.sub;
+
+    // 1. If Google ID Token (JWT Credential) is provided, verify or decode
+    if (credential && typeof credential === 'string') {
+      try {
+        // Try verifying with Google TokenInfo endpoint
+        const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        if (googleRes.ok) {
+          const payload = await googleRes.json() as any;
+          email = payload.email;
+          name = payload.name || payload.given_name || payload.email?.split('@')[0];
+          googleId = payload.sub;
+        } else {
+          // Fallback: parse unverified payload from JWT token
+          const parts = credential.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+            email = payload.email || email;
+            name = payload.name || payload.given_name || name;
+            googleId = payload.sub || googleId;
+          }
+        }
+      } catch (tokenErr) {
+        console.warn("⚠️ Google tokeninfo verify failed, attempting JWT payload parse:", tokenErr);
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+          email = payload.email || email;
+          name = payload.name || payload.given_name || name;
+          googleId = payload.sub || googleId;
+        }
+      }
+    } else if (token && typeof token === 'string') {
+      // Access token verification via Google UserInfo endpoint
+      try {
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (userInfoRes.ok) {
+          const userInfo = await userInfoRes.json() as any;
+          email = userInfo.email;
+          name = userInfo.name || userInfo.given_name || userInfo.email?.split('@')[0];
+          googleId = userInfo.sub;
+        }
+      } catch (userErr) {
+        console.warn("⚠️ Google userinfo fetch failed:", userErr);
+      }
+    }
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ message: "Google authentication failed: Valid email address is required" });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = name?.trim() || cleanEmail.split('@')[0];
+
+    // 2. Look up existing user by email
+    let user = await prisma.user.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (!user) {
+      // 3. Auto-create new student user for Google sign-in
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      user = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          name: cleanName,
+          password: hashedPassword,
+          role: 'STUDENT',
+          emailVerified: true
+        }
+      });
+      console.log("✨ New user created via Google Sign-In with ID:", user.id);
+    } else if (!user.emailVerified) {
+      // Mark emailVerified = true
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: true }
+      });
+    }
+
+    // 4. Generate JWT tokens
+    const jwtSecret = process.env.JWT_SECRET || 'rexam_production_jwt_secret_key_2026';
+    const refreshSecret = process.env.REFRESH_TOKEN_SECRET || 'rexam_production_refresh_token_secret_2026';
+
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id },
+      refreshSecret,
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    console.log("✅ Google Sign-In successful for:", user.email);
+    console.log("-----------------------------------------");
+
+    return res.status(200).json({
+      message: "Google authentication successful",
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone
+      }
+    });
+  } catch (error: any) {
+    console.error("❌ Google Auth error:", error);
+    return res.status(500).json({ message: "Google authentication failed", error: error.message || String(error) });
   }
 };

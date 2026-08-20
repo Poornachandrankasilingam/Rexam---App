@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react"
+"use client"
+
+import { useState } from "react"
 import { motion } from "framer-motion"
-import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react"
-import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { Mail, Lock, User, Phone, ArrowRight } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { OtpInputModal } from "@/components/auth/OtpInputModal"
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { useAuth } from "@/context/AuthContext"
 import api from "@/lib/api"
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { login: authContextLogin } = useAuth()
 
   const [loading, setLoading] = useState(false)
@@ -20,44 +21,12 @@ export default function RegisterPage() {
     email: "",
     phone: "",
     password: "",
-    confirmPassword: "",
-    verificationType: "EMAIL" as "EMAIL" | "PHONE"
+    confirmPassword: ""
   })
 
-  // Pre-fill target and type from query parameters if redirected from Account Not Found
-  useEffect(() => {
-    const prefilledTarget = searchParams.get("target")
-    const prefilledType = searchParams.get("type") as "EMAIL" | "PHONE" | null
-
-    if (prefilledTarget) {
-      if (prefilledType === "PHONE" || (!prefilledTarget.includes("@") && /^\+?\d+$/.test(prefilledTarget.trim()))) {
-        setFormData((prev) => ({
-          ...prev,
-          phone: prefilledTarget,
-          verificationType: "PHONE"
-        }))
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          email: prefilledTarget,
-          verificationType: "EMAIL"
-        }))
-      }
-    }
-  }, [searchParams])
-
-  // OTP Modal State
-  const [showOtpModal, setShowOtpModal] = useState(false)
-  const [targetMasked, setTargetMasked] = useState("")
-  const [verifyingOtp, setVerifyingOtp] = useState(false)
-  const [otpError, setOtpError] = useState<string | null>(null)
-  const [isOtpVerified, setIsOtpVerified] = useState(false)
-
-  // Step 1: Click "Send OTP"
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setOtpError(null)
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.")
@@ -69,81 +38,14 @@ export default function RegisterPage() {
       return
     }
 
-    const target = formData.verificationType === "PHONE" ? formData.phone : formData.email
-    if (!target || !target.trim()) {
-      setError(`Please enter a valid ${formData.verificationType === "PHONE" ? "phone number" : "email address"}.`)
-      return
-    }
-
     setLoading(true)
 
-    try {
-      const res = await api.post("/auth/send-otp", {
-        target,
-        type: formData.verificationType,
-        purpose: "REGISTRATION",
-        userName: formData.name
-      })
-
-      setTargetMasked(res.data.targetMasked || target)
-      setShowOtpModal(true)
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Failed to send OTP. Please try again."
-      setError(msg)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Step 2: Verify 6-digit OTP in Modal
-  const handleVerifyOtp = async (otpCode: string) => {
-    setVerifyingOtp(true)
-    setOtpError(null)
-
-    const target = formData.verificationType === "PHONE" ? formData.phone : formData.email
-
-    try {
-      await api.post("/auth/verify-otp", {
-        target,
-        otpCode,
-        purpose: "REGISTRATION"
-      })
-
-      setIsOtpVerified(true)
-      setShowOtpModal(false)
-
-      // Auto-complete registration after verification
-      await completeRegistration()
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Invalid OTP code. Please try again."
-      setOtpError(msg)
-    } finally {
-      setVerifyingOtp(false)
-    }
-  }
-
-  // Resend OTP
-  const handleResendOtp = async () => {
-    const target = formData.verificationType === "PHONE" ? formData.phone : formData.email
-    const res = await api.post("/auth/send-otp", {
-      target,
-      type: formData.verificationType,
-      purpose: "REGISTRATION",
-      userName: formData.name
-    })
-    setTargetMasked(res.data.targetMasked || target)
-  }
-
-  // Step 3: Complete Account Creation
-  const completeRegistration = async () => {
-    setLoading(true)
     try {
       const res = await api.post("/auth/register", {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        verificationType: formData.verificationType
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
+        password: formData.password
       })
 
       if (res.data?.accessToken && res.data?.user) {
@@ -157,7 +59,7 @@ export default function RegisterPage() {
         navigate("/login")
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Registration failed after OTP verification."
+      const msg = err.response?.data?.message || "Registration failed. Please try again."
       setError(msg)
     } finally {
       setLoading(false)
@@ -188,8 +90,25 @@ export default function RegisterPage() {
                 />
               </div>
             </Link>
-            <h1 className="text-3xl font-extrabold font-outfit text-white">Create Rexam Account</h1>
-            <p className="text-sm text-slate-400">Secure OTP-based registration for government exam aspirants</p>
+            <h1 className="text-3xl font-extrabold font-outfit text-white">Create Account</h1>
+            <p className="text-sm text-slate-400">Join Rexam to start practicing mock exams and PYQs</p>
+          </div>
+
+          {/* Google One-Click Sign Up */}
+          <div className="space-y-3">
+            <GoogleSignInButton
+              text="Sign up with Google"
+              onError={(msg) => setError(msg)}
+            />
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-[#0f172a] px-3 text-slate-400 font-medium">Or register with email</span>
+              </div>
+            </div>
           </div>
 
           {error && (
@@ -198,39 +117,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            {/* Verification Choice Toggle */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Verification Option</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, verificationType: "EMAIL" })}
-                  className={`py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-2 ${
-                    formData.verificationType === "EMAIL"
-                      ? "bg-blue-600/20 border-blue-400 text-white shadow-md shadow-blue-500/20"
-                      : "bg-secondary/30 border-white/10 text-slate-400 hover:bg-secondary/60"
-                  }`}
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  <span>Email OTP</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, verificationType: "PHONE" })}
-                  className={`py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-2 ${
-                    formData.verificationType === "PHONE"
-                      ? "bg-blue-600/20 border-blue-400 text-white shadow-md shadow-blue-500/20"
-                      : "bg-secondary/30 border-white/10 text-slate-400 hover:bg-secondary/60"
-                  }`}
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  <span>Phone OTP</span>
-                </button>
-              </div>
-            </div>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-300">Full Name</label>
               <div className="relative">
@@ -266,7 +153,9 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Phone Number (with Country Code)</label>
+              <label className="text-xs font-semibold text-slate-300">
+                Phone Number <span className="text-slate-500 font-normal">(Optional)</span>
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                   <Phone className="h-4 w-4" />
@@ -277,7 +166,6 @@ export default function RegisterPage() {
                   className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  required
                 />
               </div>
             </div>
@@ -324,7 +212,7 @@ export default function RegisterPage() {
                 disabled={loading}
                 className="w-full py-6 rounded-2xl text-sm font-bold shadow-xl shadow-blue-600/30 bg-blue-600 hover:bg-blue-500 border border-blue-400/30 transition-all"
               >
-                {loading ? "Sending OTP..." : `Send OTP & Register via ${formData.verificationType}`}
+                {loading ? "Creating Account..." : "Create Rexam Account"}
                 {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </div>
@@ -338,18 +226,6 @@ export default function RegisterPage() {
           </p>
         </div>
       </motion.div>
-
-      {/* 6-Digit OTP Modal */}
-      <OtpInputModal
-        isOpen={showOtpModal}
-        onClose={() => setShowOtpModal(false)}
-        targetMasked={targetMasked}
-        onVerify={handleVerifyOtp}
-        onResend={handleResendOtp}
-        loading={verifyingOtp}
-        error={otpError}
-        title={`Verify ${formData.verificationType === "PHONE" ? "Phone" : "Email"} OTP`}
-      />
     </div>
   )
 }

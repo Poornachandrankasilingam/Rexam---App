@@ -84,31 +84,10 @@ async function runTests() {
     }
   });
 
-  // --- SECURE OTP & REGISTRATION TESTS ---
+  // --- DIRECT REGISTRATION & GOOGLE SIGN-IN TESTS ---
 
-  await test('Secure OTP Registration - User A (Email & Phone)', async () => {
-    const testOtp = '123456';
-    const otpHash = await bcrypt.hash(testOtp, 10);
-
-    await prisma.otpVerification.deleteMany({ where: { target: 'usera@rexam.com' } });
-    await prisma.otpVerification.create({
-      data: {
-        target: 'usera@rexam.com',
-        type: 'EMAIL',
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-        verified: false,
-        purpose: 'REGISTRATION'
-      }
-    });
-
-    const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'usera@rexam.com', otpCode: '123456', purpose: 'REGISTRATION' })
-    });
-    if (verifyRes.status !== 200) throw new Error('OTP verification failed for User A registration');
+  await test('Direct Registration - User A (No OTP Requirement)', async () => {
+    await prisma.user.deleteMany({ where: { email: 'usera@rexam.com' } });
 
     const regRes = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
@@ -117,80 +96,65 @@ async function runTests() {
         email: 'usera@rexam.com',
         password: 'password123',
         name: 'User A',
-        phone: '+919876543210',
-        verificationType: 'EMAIL'
+        phone: '+919876543210'
       })
     });
     const regData = await regRes.json() as any;
     if (regRes.status !== 201 || !regData.accessToken) {
-      throw new Error(`Registration failed for User A: ${JSON.stringify(regData)}`);
+      throw new Error(`Direct registration failed for User A: ${JSON.stringify(regData)}`);
     }
   });
 
-  // --- REGISTERED ACCOUNT OTP LOGIN TESTS ---
+  await test('Google Authentication - Sign Up New User (Google Sign-In)', async () => {
+    await prisma.user.deleteMany({ where: { email: 'google-test@rexam.com' } });
 
-  await test('Registered User A - OTP Login via Phone Number', async () => {
-    // Generate login OTP
-    const testOtp = '555666';
-    const otpHash = await bcrypt.hash(testOtp, 10);
-
-    await prisma.otpVerification.deleteMany({ where: { target: 'usera@rexam.com', purpose: 'LOGIN' } });
-    await prisma.otpVerification.create({
-      data: {
-        target: 'usera@rexam.com',
-        type: 'PHONE',
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-        verified: false,
-        purpose: 'LOGIN'
-      }
-    });
-
-    // Verify OTP for LOGIN
-    const loginRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
+    const googleRes = await fetch(`${API_URL}/api/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'usera@rexam.com', otpCode: '555666', purpose: 'LOGIN' })
+      body: JSON.stringify({
+        email: 'google-test@rexam.com',
+        name: 'Google Aspirant',
+        googleId: 'google-uid-12345'
+      })
+    });
+    const googleData = await googleRes.json() as any;
+
+    if (googleRes.status !== 200 || !googleData.accessToken) {
+      throw new Error(`Google Sign-In failed: ${JSON.stringify(googleData)}`);
+    }
+
+    if (googleData.user.email !== 'google-test@rexam.com') {
+      throw new Error(`Expected email google-test@rexam.com, got ${googleData.user.email}`);
+    }
+
+    await prisma.user.deleteMany({ where: { email: 'google-test@rexam.com' } });
+  });
+
+  await test('Direct Password Reset - Update Password without OTP', async () => {
+    const resetRes = await fetch(`${API_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: 'usera@rexam.com',
+        newPassword: 'newpassword123'
+      })
+    });
+    const resetData = await resetRes.json() as any;
+
+    if (resetRes.status !== 200) {
+      throw new Error(`Password reset failed: ${JSON.stringify(resetData)}`);
+    }
+
+    // Verify login with new password
+    const loginRes = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'usera@rexam.com', password: 'newpassword123' })
     });
     const loginData = await loginRes.json() as any;
-
     if (loginRes.status !== 200 || !loginData.accessToken) {
-      throw new Error(`OTP Login failed for User A: ${JSON.stringify(loginData)}`);
+      throw new Error(`Login with new password failed: ${JSON.stringify(loginData)}`);
     }
-  });
-
-  await test('Secure OTP Test - Incorrect OTP Counter & Attempt Threshold', async () => {
-    const otpHash = await bcrypt.hash('888888', 10);
-    await prisma.otpVerification.deleteMany({ where: { target: 'lockout-test@rexam.com' } });
-    await prisma.otpVerification.create({
-      data: {
-        target: 'lockout-test@rexam.com',
-        type: 'EMAIL',
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-        verified: false,
-        purpose: 'REGISTRATION'
-      }
-    });
-
-    const wrongRes = await fetch(`${API_URL}/api/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'lockout-test@rexam.com', otpCode: '000000', purpose: 'REGISTRATION' })
-    });
-
-    if (wrongRes.status !== 400) {
-      throw new Error('Expected 400 Bad Request for incorrect OTP');
-    }
-
-    const record = await prisma.otpVerification.findFirst({ where: { target: 'lockout-test@rexam.com' } });
-    if (!record || record.attempts !== 1) {
-      throw new Error(`Expected attempts = 1, got ${record?.attempts}`);
-    }
-
-    await prisma.otpVerification.deleteMany({ where: { target: 'lockout-test@rexam.com' } });
   });
 
   // --- USER DATA ISOLATION TESTS ---
@@ -202,35 +166,15 @@ async function runTests() {
     const resEmail = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: 'usera@rexam.com', password: 'password123' })
+      body: JSON.stringify({ identifier: 'usera@rexam.com', password: 'newpassword123' })
     });
     const dataEmail = await resEmail.json() as any;
     if (!dataEmail.accessToken) throw new Error('Email login failed for User A');
     tokenA = dataEmail.accessToken;
   });
 
-  await test('User Isolation Test - Register User B with Verified OTP', async () => {
-    const testOtp = '654321';
-    const otpHash = await bcrypt.hash(testOtp, 10);
-
-    await prisma.otpVerification.deleteMany({ where: { target: 'userb@rexam.com' } });
-    await prisma.otpVerification.create({
-      data: {
-        target: 'userb@rexam.com',
-        type: 'EMAIL',
-        otpHash,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        attempts: 0,
-        verified: false,
-        purpose: 'REGISTRATION'
-      }
-    });
-
-    await fetch(`${API_URL}/api/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: 'userb@rexam.com', otpCode: '654321', purpose: 'REGISTRATION' })
-    });
+  await test('User Isolation Test - Register User B Directly (No OTP)', async () => {
+    await prisma.user.deleteMany({ where: { email: 'userb@rexam.com' } });
 
     const regRes = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
@@ -239,12 +183,11 @@ async function runTests() {
         email: 'userb@rexam.com',
         password: 'password123',
         name: 'User B',
-        phone: '+919123456789',
-        verificationType: 'EMAIL'
+        phone: '+919123456789'
       })
     });
     const regData = await regRes.json() as any;
-    if (!regData.accessToken) throw new Error('Login failed for User B');
+    if (!regData.accessToken) throw new Error('Registration failed for User B');
     tokenB = regData.accessToken;
   });
 

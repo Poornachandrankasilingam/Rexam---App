@@ -51,6 +51,20 @@ export async function sendEmailOtp({ target, otpCode, userName }: OtpDeliveryOpt
   // 1. Try Resend API if RESEND_API_KEY is configured
   if (process.env.RESEND_API_KEY) {
     try {
+      const configuredFrom = process.env.FROM_EMAIL || process.env.EMAIL_FROM;
+      let fromAddress = 'Rexam Auth <onboarding@resend.dev>';
+
+      if (configuredFrom && configuredFrom.trim()) {
+        const trimmed = configuredFrom.trim();
+        const isPublicWebmail = /@(gmail\.com|yahoo\.com|hotmail\.com|outlook\.com|live\.com|icloud\.com)$/i.test(trimmed);
+        if (!isPublicWebmail) {
+          fromAddress = trimmed.includes('<') ? trimmed : `Rexam Auth <${trimmed}>`;
+        } else {
+          console.warn(`⚠️ [RESEND NOTICE] "${trimmed}" is a public webmail domain. Resend requires onboarding@resend.dev for test accounts or a custom domain verified in Resend dashboard. Using "Rexam Auth <onboarding@resend.dev>".`);
+          fromAddress = 'Rexam Auth <onboarding@resend.dev>';
+        }
+      }
+
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -58,16 +72,47 @@ export async function sendEmailOtp({ target, otpCode, userName }: OtpDeliveryOpt
           'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Rexam Auth <onboarding@resend.dev>',
+          from: fromAddress,
           to: [target],
           subject,
           html: htmlMessage,
           text: textMessage
         })
       });
+
+      const resData = await res.json().catch(() => null);
+
       if (res.ok) {
-        console.log(`📬 [RESEND API] Live OTP email dispatched to ${target}`);
+        console.log(`📬 [RESEND API] Live OTP email dispatched to ${target} (ID: ${resData?.id || 'ok'})`);
         return true;
+      } else {
+        console.error(`❌ [RESEND API ERROR] Status ${res.status}:`, resData);
+
+        // If domain validation error and a custom sender was used, retry with onboarding@resend.dev
+        if ((res.status === 403 || res.status === 422) && fromAddress !== 'Rexam Auth <onboarding@resend.dev>') {
+          console.log(`🔄 [RESEND RETRY] Retrying dispatch with verified test sender "Rexam Auth <onboarding@resend.dev>"...`);
+          const retryRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
+            },
+            body: JSON.stringify({
+              from: 'Rexam Auth <onboarding@resend.dev>',
+              to: [target],
+              subject,
+              html: htmlMessage,
+              text: textMessage
+            })
+          });
+          const retryData = await retryRes.json().catch(() => null);
+          if (retryRes.ok) {
+            console.log(`📬 [RESEND API] Live OTP email dispatched on retry to ${target} (ID: ${retryData?.id || 'ok'})`);
+            return true;
+          } else {
+            console.error(`❌ [RESEND RETRY ERROR] Status ${retryRes.status}:`, retryData);
+          }
+        }
       }
     } catch (err: any) {
       console.warn(`⚠️ Resend API delivery attempt error:`, err.message);

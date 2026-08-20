@@ -2,7 +2,20 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
+// Ensure .env is loaded from backend directory or project root
+const possibleEnvPaths = [
+  path.resolve(process.cwd(), 'backend', '.env'),
+  path.resolve(process.cwd(), '.env')
+];
+
+for (const p of possibleEnvPaths) {
+  if (fs.existsSync(p)) {
+    dotenv.config({ path: p });
+  }
+}
 dotenv.config();
 
 import authRoutes from './routes/auth.routes.js';
