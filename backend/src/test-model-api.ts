@@ -105,6 +105,17 @@ async function runTests() {
     }
   });
 
+  await test('Google Authentication - Get OAuth 2.0 Authorization URL Endpoint', async () => {
+    const urlRes = await fetch(`${API_URL}/api/auth/google/url`);
+    if (urlRes.status !== 200) {
+      throw new Error(`Expected 200 status for /api/auth/google/url, got ${urlRes.status}`);
+    }
+    const urlData = await urlRes.json() as any;
+    if (!urlData.redirectUri) {
+      throw new Error('Expected redirectUri in response');
+    }
+  });
+
   await test('Google Authentication - Sign Up New User (Google Sign-In)', async () => {
     await prisma.user.deleteMany({ where: { email: 'google-test@rexam.com' } });
 
@@ -114,7 +125,8 @@ async function runTests() {
       body: JSON.stringify({
         email: 'google-test@rexam.com',
         name: 'Google Aspirant',
-        googleId: 'google-uid-12345'
+        googleId: 'google-uid-12345',
+        picture: 'https://lh3.googleusercontent.com/a/test-avatar'
       })
     });
     const googleData = await googleRes.json() as any;
@@ -127,7 +139,55 @@ async function runTests() {
       throw new Error(`Expected email google-test@rexam.com, got ${googleData.user.email}`);
     }
 
+    if (googleData.user.role !== 'STUDENT') {
+      throw new Error(`Expected role STUDENT, got ${googleData.user.role}`);
+    }
+
+    // Verify user in database has googleId, authProvider, and avatar
+    const dbUser = await prisma.user.findUnique({ where: { email: 'google-test@rexam.com' } });
+    if (!dbUser || dbUser.googleId !== 'google-uid-12345' || dbUser.authProvider !== 'GOOGLE') {
+      throw new Error(`Expected googleId and authProvider in DB, got: ${JSON.stringify(dbUser)}`);
+    }
+
     await prisma.user.deleteMany({ where: { email: 'google-test@rexam.com' } });
+  });
+
+  await test('Google Authentication - Link to Existing User Account', async () => {
+    // 1. Create a standard registered user first
+    await prisma.user.deleteMany({ where: { email: 'link-test@rexam.com' } });
+    const localPass = await bcrypt.hash('localpassword123', 10);
+    await prisma.user.create({
+      data: {
+        email: 'link-test@rexam.com',
+        password: localPass,
+        name: 'Local Aspirant',
+        role: 'STUDENT'
+      }
+    });
+
+    // 2. Sign in with Google using same email
+    const googleRes = await fetch(`${API_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'link-test@rexam.com',
+        name: 'Local Aspirant',
+        googleId: 'google-linked-id-999',
+        picture: 'https://lh3.googleusercontent.com/linked-avatar'
+      })
+    });
+    const googleData = await googleRes.json() as any;
+
+    if (googleRes.status !== 200 || !googleData.accessToken) {
+      throw new Error(`Google Sign-In linking failed: ${JSON.stringify(googleData)}`);
+    }
+
+    const linkedUser = await prisma.user.findUnique({ where: { email: 'link-test@rexam.com' } });
+    if (!linkedUser || linkedUser.googleId !== 'google-linked-id-999') {
+      throw new Error(`Expected linked user to have googleId updated`);
+    }
+
+    await prisma.user.deleteMany({ where: { email: 'link-test@rexam.com' } });
   });
 
   await test('Direct Password Reset - Update Password without OTP', async () => {

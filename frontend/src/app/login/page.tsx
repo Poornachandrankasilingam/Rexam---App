@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Mail, Lock, ArrowRight, Shield, GraduationCap } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import api from "@/lib/api"
@@ -11,9 +11,17 @@ import { useAuth } from "@/context/AuthContext"
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+    }
+  }, [searchParams])
 
   // Form inputs
   const [identifier, setIdentifier] = useState("") // Email or Mobile Number

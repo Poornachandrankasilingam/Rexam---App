@@ -6,6 +6,7 @@ import LoginPage from "@/app/login/page"
 import RegisterPage from "@/app/register/page"
 import ForgotPasswordPage from "@/app/forgot-password/page"
 import ResetPasswordPage from "@/app/reset-password/page"
+import GoogleCallbackPage from "@/app/auth/callback/google/page"
 import NotFound from "@/app/not-found"
 import DashboardLayout from "@/app/(dashboard)/layout"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
@@ -90,6 +91,7 @@ export function AppRoutes() {
       />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/auth/callback/google" element={<GoogleCallbackPage />} />
 
       {/* Top-Level Shortcut Redirect Aliases (Protected) */}
       <Route 

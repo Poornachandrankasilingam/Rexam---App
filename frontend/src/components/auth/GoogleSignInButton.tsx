@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import api from "@/lib/api"
@@ -49,19 +49,18 @@ export function GoogleSignInButton({
   const navigate = useNavigate()
   const { login } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [gsiInitialized, setGsiInitialized] = useState(false)
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null)
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
-  const isRealClientIdConfigured =
+  const isRealClientIdConfigured = Boolean(
     clientId &&
-    clientId !== "your_google_client_id_here.apps.googleusercontent.com" &&
+    !clientId.includes("your_google_client_id_here") &&
     clientId.includes(".apps.googleusercontent.com")
+  )
 
-  // Handle Google Token / Credential Response
+  // Handle Google Token / Credential Response from GSI
   const handleCredentialResponse = async (response: { credential?: string }) => {
     if (!response.credential) {
-      if (onError) onError("Failed to obtain Google authentication credential.")
+      if (onError) onError("Google authentication could not be completed. No credential received.")
       return
     }
 
@@ -81,14 +80,14 @@ export function GoogleSignInButton({
         }
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Google Sign-In failed. Please try again."
+      const msg = err.response?.data?.message || "Google authentication could not be completed. Please try again."
       if (onError) onError(msg)
     } finally {
       setLoading(false)
     }
   }
 
-  // Initialize Google Identity Services when script is ready
+  // Initialize GSI if client ID is configured
   useEffect(() => {
     if (!isRealClientIdConfigured) return
 
@@ -101,7 +100,6 @@ export function GoogleSignInButton({
             auto_select: false,
             cancel_on_tap_outside: true
           })
-          setGsiInitialized(true)
         } catch (e) {
           console.warn("Google GSI initialization error:", e)
         }
@@ -121,53 +119,40 @@ export function GoogleSignInButton({
     }
   }, [clientId, isRealClientIdConfigured])
 
-  // Custom click handler
+  // Handle Click (Supports OAuth2 Redirect & GSI)
   const handleClick = async () => {
     if (loading) return
-
-    if (isRealClientIdConfigured && window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.prompt()
-      } catch (err) {
-        console.warn("GSI Prompt error:", err)
-      }
-      return
-    }
-
-    // Dev / Instant Google Account Sign-In Fallback
-    // When live Google Cloud Client ID is pending setup in .env, seamlessly authenticate with Google profile
     setLoading(true)
-    try {
-      const demoGoogleEmail = prompt(
-        "Enter your Google Email to test Google Sign-In (or press OK for default):",
-        "student.aspirant@gmail.com"
-      )
 
-      if (!demoGoogleEmail) {
+    try {
+      // 1. Check if backend has Google OAuth URL configured
+      const res = await api.get("/auth/google/url")
+
+      if (res.data?.configured && res.data?.url) {
+        // Redirect to official Google OAuth 2.0 Consent Screen
+        window.location.href = res.data.url
+        return
+      }
+
+      // 2. If backend URL is not configured, check GSI prompt on frontend
+      if (isRealClientIdConfigured && window.google?.accounts?.id) {
+        window.google.accounts.id.prompt()
         setLoading(false)
         return
       }
 
-      const res = await api.post("/auth/google", {
-        email: demoGoogleEmail.trim(),
-        name: demoGoogleEmail.split("@")[0].replace(".", " "),
-        googleId: "google-oauth-" + Date.now()
-      })
-
-      const { accessToken, user } = res.data
-      if (accessToken && user) {
-        login(accessToken, user)
-        if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-          navigate("/admin")
-        } else {
-          navigate("/student")
-        }
+      // 3. If credentials are not yet configured in environment variables
+      setLoading(false)
+      const configErrorMsg = "Google OAuth is not configured yet. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env to connect Google Cloud Console."
+      if (onError) {
+        onError(configErrorMsg)
+      } else {
+        alert(configErrorMsg)
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Google Sign-In failed."
-      if (onError) onError(msg)
-    } finally {
       setLoading(false)
+      const msg = err.response?.data?.message || "Google authentication could not be completed. Please try again."
+      if (onError) onError(msg)
     }
   }
 
@@ -205,9 +190,6 @@ export function GoogleSignInButton({
           {loading ? "Connecting to Google..." : text}
         </span>
       </button>
-
-      {/* Hidden container for Google GSI native button if needed */}
-      <div ref={googleBtnContainerRef} className="hidden" />
     </div>
   )
 }

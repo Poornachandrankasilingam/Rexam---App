@@ -7,6 +7,8 @@ interface User {
   name: string
   email: string
   role: "SUPER_ADMIN" | "ADMIN" | "STUDENT"
+  avatar?: string
+  phone?: string
 }
 
 interface AuthContextType {

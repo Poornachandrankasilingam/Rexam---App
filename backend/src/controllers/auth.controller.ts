@@ -524,29 +524,240 @@ export const resetPassword = async (req: Request, res: Response) => {
 };
 
 /**
- * Google Sign-In & Sign-Up Authentication
- * Verifies Google ID token / access token or profile payload and signs user in.
+ * Get Google OAuth 2.0 Authorization URL
+ */
+export const getGoogleAuthUrl = (req: Request, res: Response) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+
+  const isConfigured = Boolean(
+    clientId && 
+    !clientId.includes('your_google_client_id_here') && 
+    clientId.includes('.apps.googleusercontent.com')
+  );
+
+  if (!isConfigured) {
+    return res.status(200).json({
+      configured: false,
+      message: "Google OAuth credentials not configured in server environment variables.",
+      redirectUri
+    });
+  }
+
+  const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+  const options = {
+    redirect_uri: redirectUri,
+    client_id: clientId!,
+    access_type: 'offline',
+    response_type: 'code',
+    prompt: 'select_account',
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'openid'
+    ].join(' ')
+  };
+
+  const qs = new URLSearchParams(options);
+  return res.status(200).json({
+    configured: true,
+    url: `${rootUrl}?${qs.toString()}`,
+    redirectUri
+  });
+};
+
+/**
+ * Handle Google OAuth 2.0 Callback
+ * Exchanges authorization code for tokens, verifies profile, and signs user in.
+ */
+export const googleCallback = async (req: Request, res: Response) => {
+  console.log("-----------------------------------------");
+  console.log("🚀 Incoming Google OAuth Callback");
+
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000';
+  const { code, error, error_description } = req.query;
+
+  if (error) {
+    console.warn("⚠️ Google OAuth Error:", error, error_description);
+    const safeError = error === 'access_denied' 
+      ? 'Google sign-in was cancelled by the user.' 
+      : 'Google authentication could not be completed. Please try again.';
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(safeError)}`);
+  }
+
+  if (!code || typeof code !== 'string') {
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('No authorization code was received from Google.')}`);
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+
+  if (!clientId || !clientSecret || clientId.includes('your_google_client_id_here') || clientSecret.includes('your_google_client_secret_here')) {
+    console.error("❌ Google OAuth credentials missing or invalid in server environment.");
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Google OAuth server credentials are not configured.')}`);
+  }
+
+  try {
+    // 1. Exchange Authorization Code for Google Access & ID Tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const tokenErr = await tokenResponse.text();
+      console.error("❌ Google Token Exchange Failed:", tokenResponse.status, tokenErr);
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Failed to exchange authorization code with Google. Please try again.')}`);
+    }
+
+    const tokens = await tokenResponse.json() as { access_token?: string; id_token?: string };
+    if (!tokens.access_token) {
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Google access token missing in token response.')}`);
+    }
+
+    // 2. Fetch User Profile from Google UserInfo
+    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+
+    if (!userInfoRes.ok) {
+      console.error("❌ Failed to fetch userinfo from Google:", userInfoRes.status);
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Failed to fetch user profile from Google.')}`);
+    }
+
+    const profile = await userInfoRes.json() as {
+      sub?: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+      email_verified?: boolean;
+    };
+
+    if (!profile.email) {
+      return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('No email address provided by your Google account.')}`);
+    }
+
+    const cleanEmail = profile.email.toLowerCase().trim();
+    const cleanName = profile.name?.trim() || cleanEmail.split('@')[0];
+    const googleId = profile.sub || null;
+    const avatar = profile.picture || null;
+
+    // 3. Find existing user by Email or Google ID
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: cleanEmail },
+          ...(googleId ? [{ googleId }] : [])
+        ]
+      }
+    });
+
+    if (!user) {
+      // 4. Create new Student Account (Never automatically create ADMIN)
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+      user = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          name: cleanName,
+          password: hashedPassword,
+          role: 'STUDENT',
+          authProvider: 'GOOGLE',
+          googleId,
+          avatar,
+          emailVerified: true
+        }
+      });
+      console.log("✨ New student account created via Google OAuth with ID:", user.id);
+    } else {
+      // 5. Link Google ID & Avatar to existing account safely
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId: user.googleId || googleId,
+          avatar: avatar || user.avatar,
+          emailVerified: true,
+          authProvider: user.authProvider || 'GOOGLE'
+        }
+      });
+      console.log("🔗 Existing user logged in via Google OAuth:", user.email, `(Role: ${user.role})`);
+    }
+
+    // 6. Generate standard JWT tokens
+    const jwtSecret = process.env.JWT_SECRET || 'rexam_production_jwt_secret_key_2026';
+    const refreshSecret = process.env.REFRESH_TOKEN_SECRET || 'rexam_production_refresh_token_secret_2026';
+
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user.id },
+      refreshSecret,
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      avatar: user.avatar
+    };
+
+    console.log("✅ Google OAuth Callback successful for:", user.email);
+    console.log("-----------------------------------------");
+
+    return res.redirect(`${frontendUrl}/auth/callback/google?token=${accessToken}&userData=${encodeURIComponent(JSON.stringify(userData))}`);
+  } catch (err: any) {
+    console.error("❌ Google OAuth Callback error:", err);
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Google authentication could not be completed. Please try again.')}`);
+  }
+};
+
+/**
+ * Direct Google Sign-In & Sign-Up Authentication (GSI / Token Verification)
  */
 export const googleAuth = async (req: Request, res: Response) => {
   console.log("-----------------------------------------");
-  console.log("🚀 Incoming Google Authentication Request");
+  console.log("🚀 Incoming Google Token Authentication Request");
 
   try {
-    const { credential, token, email: rawEmail, name: rawName } = req.body;
+    const { credential, token, email: rawEmail, name: rawName, picture: rawPicture } = req.body;
 
     let email = rawEmail;
     let name = rawName;
+    let avatar = rawPicture;
     let googleId = req.body.googleId || req.body.sub;
 
     // 1. If Google ID Token (JWT Credential) is provided, verify or decode
     if (credential && typeof credential === 'string') {
       try {
-        // Try verifying with Google TokenInfo endpoint
         const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
         if (googleRes.ok) {
           const payload = await googleRes.json() as any;
           email = payload.email;
           name = payload.name || payload.given_name || payload.email?.split('@')[0];
+          avatar = payload.picture || avatar;
           googleId = payload.sub;
         } else {
           // Fallback: parse unverified payload from JWT token
@@ -555,6 +766,7 @@ export const googleAuth = async (req: Request, res: Response) => {
             const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
             email = payload.email || email;
             name = payload.name || payload.given_name || name;
+            avatar = payload.picture || avatar;
             googleId = payload.sub || googleId;
           }
         }
@@ -565,6 +777,7 @@ export const googleAuth = async (req: Request, res: Response) => {
           const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
           email = payload.email || email;
           name = payload.name || payload.given_name || name;
+          avatar = payload.picture || avatar;
           googleId = payload.sub || googleId;
         }
       }
@@ -578,6 +791,7 @@ export const googleAuth = async (req: Request, res: Response) => {
           const userInfo = await userInfoRes.json() as any;
           email = userInfo.email;
           name = userInfo.name || userInfo.given_name || userInfo.email?.split('@')[0];
+          avatar = userInfo.picture || avatar;
           googleId = userInfo.sub;
         }
       } catch (userErr) {
@@ -592,9 +806,14 @@ export const googleAuth = async (req: Request, res: Response) => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name?.trim() || cleanEmail.split('@')[0];
 
-    // 2. Look up existing user by email
-    let user = await prisma.user.findUnique({
-      where: { email: cleanEmail }
+    // 2. Look up existing user by email or Google ID
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: cleanEmail },
+          ...(googleId ? [{ googleId }] : [])
+        ]
+      }
     });
 
     if (!user) {
@@ -608,15 +827,23 @@ export const googleAuth = async (req: Request, res: Response) => {
           name: cleanName,
           password: hashedPassword,
           role: 'STUDENT',
+          authProvider: 'GOOGLE',
+          googleId,
+          avatar,
           emailVerified: true
         }
       });
-      console.log("✨ New user created via Google Sign-In with ID:", user.id);
-    } else if (!user.emailVerified) {
-      // Mark emailVerified = true
+      console.log("✨ New student user created via Google Sign-In with ID:", user.id);
+    } else {
+      // Link Google metadata if missing
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { emailVerified: true }
+        data: {
+          googleId: user.googleId || googleId,
+          avatar: avatar || user.avatar,
+          emailVerified: true,
+          authProvider: user.authProvider || 'GOOGLE'
+        }
       });
     }
 
@@ -654,11 +881,13 @@ export const googleAuth = async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        avatar: user.avatar
       }
     });
   } catch (error: any) {
     console.error("❌ Google Auth error:", error);
-    return res.status(500).json({ message: "Google authentication failed", error: error.message || String(error) });
+    return res.status(500).json({ message: "Google authentication failed. Please try again.", error: error.message || String(error) });
   }
 };
+

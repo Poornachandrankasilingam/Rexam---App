@@ -1,0 +1,439 @@
+openapi: 3.0.3
+info:
+  title: Rexam AI API
+  description: Comprehensive CBT examination, AI proctoring, aptitude generator, and analytics platform API.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+  - url: https://rexam-app.vercel.app/api
+    description: Production Server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Returns server operational status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+                    example: Rexam Backend is running
+
+  /auth/register:
+    post:
+      summary: Direct User Registration
+      description: Register a new student user and return JWT access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: Rahul Sharma
+                email:
+                  type: string
+                  format: email
+                  example: student@rexam.com
+                phone:
+                  type: string
+                  example: '+919876543210'
+                password:
+                  type: string
+                  format: password
+                  example: student123
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error or duplicate email
+
+  /auth/login:
+    post:
+      summary: User Login
+      description: Authenticate user with Email/Phone and Password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifier
+                - password
+              properties:
+                identifier:
+                  type: string
+                  example: student@rexam.com
+                password:
+                  type: string
+                  format: password
+                  example: student123
+      responses:
+        '200':
+          description: Login successful with JWT token
+        '400':
+          description: Invalid credentials
+
+  /auth/google:
+    post:
+      summary: Google Sign-In & Sign-Up
+      description: Authenticate via Google ID token or profile details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                credential:
+                  type: string
+                  description: Google JWT ID token from Google Identity Services
+                email:
+                  type: string
+                  format: email
+                  example: student.aspirant@gmail.com
+                name:
+                  type: string
+                  example: Google Aspirant
+                googleId:
+                  type: string
+                  example: '1234567890'
+      responses:
+        '200':
+          description: Google authentication successful
+
+  /auth/reset-password:
+    post:
+      summary: Reset Password
+      description: Directly update account password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target
+                - newPassword
+              properties:
+                target:
+                  type: string
+                  example: student@rexam.com
+                newPassword:
+                  type: string
+                  format: password
+                  example: newpassword123
+      responses:
+        '200':
+          description: Password updated successfully
+
+  /auth/logout:
+    post:
+      summary: User Logout
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /student/dashboard:
+    get:
+      summary: Student Dashboard & Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard stats and exam history
+        '401':
+          description: Unauthorized
+
+  /student/exams:
+    get:
+      summary: List Available Exams
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of active exams
+
+  /student/exams/{id}:
+    get:
+      summary: Get CBT Exam Details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exam details with questions and sections
+
+  /student/exams/{id}/start:
+    post:
+      summary: Start or Recover CBT Exam Attempt
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Active attempt initialized
+
+  /student/exams/{id}/save:
+    post:
+      summary: Save CBT Progress
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: object
+                timeSpent:
+                  type: integer
+      responses:
+        '200':
+          description: Progress saved
+
+  /student/exams/{id}/submit:
+    post:
+      summary: Submit Exam Attempt
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: object
+                timeSpent:
+                  type: integer
+      responses:
+        '200':
+          description: Exam evaluated and result generated
+
+  /student/proctoring/log:
+    post:
+      summary: Log AI Proctoring Event
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                examId:
+                  type: string
+                eventType:
+                  type: string
+                  example: TAB_SWITCH
+                confidence:
+                  type: number
+                  example: 0.95
+                details:
+                  type: string
+      responses:
+        '201':
+          description: Event logged
+
+  /student/results:
+    get:
+      summary: List Student Results
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Test results list
+    post:
+      summary: Save Test Result
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                examTitle:
+                  type: string
+                score:
+                  type: number
+                totalMarks:
+                  type: number
+                correct:
+                  type: integer
+                incorrect:
+                  type: integer
+                timeSpent:
+                  type: integer
+      responses:
+        '201':
+          description: Result saved
+
+  /student/results/{id}:
+    get:
+      summary: Get Specific Result
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Result details
+
+  /student/ai-mock/generate:
+    post:
+      summary: Generate AI Custom Mock Test
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject:
+                  type: string
+                  example: Quantitative Aptitude
+                difficulty:
+                  type: string
+                  example: MEDIUM
+                questionCount:
+                  type: integer
+                  example: 10
+      responses:
+        '200':
+          description: Generated mock test
+
+  /student/pyqs:
+    get:
+      summary: Get Previous Year Questions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: PYQ bank list
+
+  /admin/dashboard:
+    get:
+      summary: Admin Dashboard Overview
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Admin stats
+
+  /admin/exams:
+    get:
+      summary: List All Exams (Admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Exams list
+
+  /admin/exams/create:
+    post:
+      summary: Create New Exam (Admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - code
+                - duration
+                - totalMarks
+                - passingMarks
+              properties:
+                title:
+                  type: string
+                code:
+                  type: string
+                duration:
+                  type: integer
+                totalMarks:
+                  type: integer
+                passingMarks:
+                  type: integer
+      responses:
+        '201':
+          description: Exam created
+
+  /admin/students:
+    get:
+      summary: List Enrolled Students (Admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Students list
+
+  /admin/proctoring:
+    get:
+      summary: View Proctoring Incident Reports (Admin)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Proctoring reports list
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

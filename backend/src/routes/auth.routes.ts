@@ -3,6 +3,8 @@ import {
   register, 
   login, 
   googleAuth,
+  getGoogleAuthUrl,
+  googleCallback,
   sendOtp, 
   verifyOtp, 
   logout, 
@@ -14,6 +16,8 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.get('/google/url', getGoogleAuthUrl);
+router.get('/google/callback', googleCallback);
 router.post('/google', googleAuth);
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
