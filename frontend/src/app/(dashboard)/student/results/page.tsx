@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Award, Clock, CheckCircle, XCircle, HelpCircle, ArrowRight, Eye } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { Award, Clock, CheckCircle, XCircle, HelpCircle, ArrowRight, Eye, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 
@@ -41,6 +42,7 @@ type SelectedResultDetail = {
 }
 
 export default function StudentResultsPage() {
+  const navigate = useNavigate()
   const [results, setResults] = useState<ResultItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDetail, setSelectedDetail] = useState<SelectedResultDetail | null>(null)
@@ -155,11 +157,21 @@ export default function StudentResultsPage() {
                   <p className="text-xs text-slate-400 mt-1">Submitted on {new Date(selectedDetail.createdAt).toLocaleString()}</p>
                 </div>
 
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-2">
                   <p className="text-3xl font-extrabold text-emerald-400">{selectedDetail.score} / {selectedDetail.totalMarks}</p>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                    {selectedDetail.accuracy}% Accuracy
-                  </span>
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      {selectedDetail.accuracy}% Accuracy
+                    </span>
+                    <Button
+                      onClick={() => navigate(`/student/reports?resultId=${selectedDetail.id}`)}
+                      size="sm"
+                      className="rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/20 text-xs px-3"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1" />
+                      AI Coach Report
+                    </Button>
+                  </div>
                 </div>
               </div>
 

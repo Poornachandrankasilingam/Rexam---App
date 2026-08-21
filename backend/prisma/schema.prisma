@@ -33,6 +33,7 @@ model User {
   googleId        String?         @unique
   authProvider    String          @default("LOCAL")
   avatar          String?
+  aiReports       AiPerformanceReport[]
 }
 
 model Exam {
@@ -52,6 +53,7 @@ model Exam {
   results       Result[]
   proctoringLogs ProctoringLog[]
   attempts      ExamAttempt[]
+  aiReports     AiPerformanceReport[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }
@@ -72,6 +74,7 @@ model Question {
   marks         Int          @default(1)
   negativeMarks Float        @default(0)
   subject       String
+  topic         String?
   explanation   String?
   options       Option[]
   exam          Exam?        @relation(fields: [examId], references: [id])
@@ -184,5 +187,37 @@ model OtpVerification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model AiPerformanceReport {
+  id               String   @id @default(uuid())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  exam             Exam?    @relation(fields: [examId], references: [id], onDelete: SetNull)
+  examId           String?
+  resultId         String?
+  overallScore     Float
+  totalMarks       Float
+  accuracy         Float
+  attemptRate      Float
+  correctCount     Int
+  wrongCount       Int
+  unansweredCount  Int
+  avgTimePerQ      Float
+  readinessScore   Int      // 0-100
+  readinessLevel   String   // "Needs Improvement" | "Moderate Preparation" | "Strong Preparation"
+  performanceLevel String   // "Needs Improvement" | "Good" | "Excellent"
+  strengths        String   // JSON string of array
+  weaknesses       String   // JSON string of array
+  criticalTopics   String   // JSON string of array
+  subjectAnalysis  String   // JSON string of array
+  topicAnalysis    String   // JSON string of array
+  mistakeAnalysis  String   // JSON string of array
+  recommendations  String   // JSON string of array
+  studyPlan        String   // JSON string of array
+  trendSummary     String?  // Historical comparison text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 
 

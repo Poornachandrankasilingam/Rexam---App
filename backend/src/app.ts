@@ -50,7 +50,17 @@ app.use('/api/admin', adminRoutes);
 
 // Health check and root API endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'Rexam Backend is running' });
+    res.json({
+        status: 'ok',
+        service: 'Rexam Backend'
+    });
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'Rexam Backend'
+    });
 });
 
 app.get('/api', (req, res) => {

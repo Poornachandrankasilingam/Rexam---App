@@ -1,6 +1,11 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { prisma } from '../config/prisma.js';
+import { 
+  generateAiPerformanceReport, 
+  chatWithResultAi, 
+  generateAdaptiveWeakMockExam 
+} from '../services/aiCoachService.js';
 
 /**
  * Get Student Dashboard Statistics
@@ -385,6 +390,14 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
       }
     });
 
+    // Automatically generate and persist AI Performance Report
+    let aiReportData = null;
+    try {
+      aiReportData = await generateAiPerformanceReport(userId, newResult.id);
+    } catch (aiErr) {
+      console.warn('⚠️ AI Performance Report generation warning:', aiErr);
+    }
+
     return res.status(201).json({
       message: 'Exam submitted successfully',
       resultId: newResult.id,
@@ -395,7 +408,8 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
       unanswered,
       accuracy,
       timeSpent: timeSpentSec,
-      explanations: detailedExplanations
+      explanations: detailedExplanations,
+      aiReport: aiReportData
     });
   } catch (error: any) {
     console.error('❌ Error submitting exam:', error);
@@ -676,3 +690,118 @@ export const updateStudentProfile = async (req: AuthenticatedRequest, res: Respo
     return res.status(500).json({ message: 'Failed to update profile', error: error.message });
   }
 };
+
+/**
+ * Get Latest AI Performance Coach Report for Logged-in Student
+ */
+export const getLatestAiCoachReport = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized: User ID missing' });
+
+    // Find latest completed exam result for this user
+    const latestResult = await prisma.result.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        exam: { select: { title: true, code: true, duration: true, totalMarks: true } }
+      }
+    });
+
+    if (!latestResult) {
+      return res.status(200).json({
+        hasAttemptedExams: false,
+        message: "Complete your first exam to unlock AI performance analysis.",
+        readinessScore: 0,
+        readinessLevel: "Needs Improvement",
+        performanceLevel: "Needs Improvement",
+        strengths: [],
+        weaknesses: [],
+        criticalTopics: [],
+        subjectAnalysis: [],
+        topicAnalysis: [],
+        mistakeAnalysis: [],
+        recommendations: ["Complete your first CBT mock test to establish baseline performance."],
+        studyPlan: [],
+        trendSummary: "No exam history recorded yet."
+      });
+    }
+
+    const report = await generateAiPerformanceReport(userId, latestResult.id);
+
+    return res.status(200).json({
+      hasAttemptedExams: true,
+      report
+    });
+  } catch (error: any) {
+    console.error('❌ AI Coach Latest Report Error:', error);
+    return res.status(500).json({ message: 'Failed to generate AI performance report', error: error.message });
+  }
+};
+
+/**
+ * Get AI Performance Coach Report for Specific Result ID
+ */
+export const getAiCoachReportByResultId = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const resultId = String(req.params.resultId);
+    const report = await generateAiPerformanceReport(userId, resultId);
+
+    return res.status(200).json({
+      hasAttemptedExams: true,
+      report
+    });
+  } catch (error: any) {
+    console.error('❌ AI Coach Specific Report Error:', error);
+    return res.status(500).json({ message: 'Failed to generate AI performance report for this result', error: error.message });
+  }
+};
+
+/**
+ * Ask AI About My Result (Chat with Result Coach)
+ */
+export const chatWithAiCoach = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const { message, resultId } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ message: 'A valid question message is required.' });
+    }
+
+    const aiReply = await chatWithResultAi(userId, message.trim(), resultId);
+
+    return res.status(200).json({
+      reply: aiReply,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('❌ AI Coach Chat Error:', error);
+    return res.status(500).json({ message: 'Failed to process AI chat query', error: error.message });
+  }
+};
+
+/**
+ * Practice My Weak Areas - Generate Adaptive Mock Test
+ */
+export const generateWeakAreaMockTest = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const generatedExam = await generateAdaptiveWeakMockExam(userId);
+
+    return res.status(201).json({
+      message: 'Adaptive weak area booster exam generated successfully',
+      exam: generatedExam
+    });
+  } catch (error: any) {
+    console.error('❌ Weak Area Mock Generator Error:', error);
+    return res.status(500).json({ message: 'Failed to generate weak area adaptive test', error: error.message });
+  }
+};
+

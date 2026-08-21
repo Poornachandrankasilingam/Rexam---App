@@ -15,7 +15,11 @@ import {
   generateAiMockTest,
   getStudentPyqs,
   getStudentProfile,
-  updateStudentProfile
+  updateStudentProfile,
+  getLatestAiCoachReport,
+  getAiCoachReportByResultId,
+  chatWithAiCoach,
+  generateWeakAreaMockTest
 } from '../controllers/student.controller.js';
 
 const router = Router();
@@ -24,6 +28,12 @@ router.use(authenticateJWT);
 
 // Student Dashboard & Analytics
 router.get('/dashboard', getStudentDashboard);
+
+// Rexam AI Performance Coach
+router.get('/ai-coach/latest', getLatestAiCoachReport);
+router.get('/ai-coach/report/:resultId', getAiCoachReportByResultId);
+router.post('/ai-coach/chat', chatWithAiCoach);
+router.post('/ai-coach/generate-weak-mock', generateWeakAreaMockTest);
 
 // Exams & CBT Engine
 router.get('/exams', getAvailableExams);
