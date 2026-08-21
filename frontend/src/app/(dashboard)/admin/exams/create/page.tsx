@@ -15,7 +15,8 @@ import {
   Sparkles,
   Layers,
   HelpCircle,
-  FileCode
+  FileCode,
+  Wand2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
@@ -94,6 +95,45 @@ Explanation: Chandragupta Maurya founded the empire with the guidance of Chanaky
   }
 ]
 
+const TOPIC_SUGGESTIONS: Record<string, string[]> = {
+  "Quantitative Aptitude": [
+    "ALL",
+    "Profit & Loss",
+    "Speed, Time & Distance",
+    "Simple & Compound Interest",
+    "Time & Work",
+    "Percentages & Ratio",
+    "Number Systems",
+    "Mensuration & Geometry"
+  ],
+  "Logical Reasoning": [
+    "ALL",
+    "Syllogism",
+    "Blood Relations",
+    "Coding-Decoding",
+    "Number & Letter Series",
+    "Direction Sense",
+    "Seating Arrangement",
+    "Analogy & Classification"
+  ],
+  "Verbal Ability": [
+    "ALL",
+    "Synonyms & Antonyms",
+    "Grammar & Spotting Errors",
+    "Sentence Improvement",
+    "Idioms & Phrases",
+    "Reading Comprehension"
+  ],
+  "General Awareness": [
+    "ALL",
+    "Indian Polity & Governance",
+    "Indian History",
+    "Geography & Environment",
+    "General Science",
+    "Current Affairs"
+  ]
+}
+
 export default function CreateExamPage() {
   const navigate = useNavigate()
 
@@ -107,6 +147,17 @@ export default function CreateExamPage() {
   const [totalMarks, setTotalMarks] = useState(100)
   const [passingMarks, setPassingMarks] = useState(40)
 
+  // Ingestion Mode in Step 2: 'OCR' | 'AI_GEN'
+  const [ingestionMode, setIngestionMode] = useState<"OCR" | "AI_GEN">("AI_GEN")
+
+  // AI Generator state
+  const [aiSubject, setAiSubject] = useState("Quantitative Aptitude")
+  const [aiTopic, setAiTopic] = useState("ALL")
+  const [aiDifficulty, setAiDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM")
+  const [aiCount, setAiCount] = useState(10)
+  const [aiLanguage, setAiLanguage] = useState("English")
+  const [isAiGenerating, setIsAiGenerating] = useState(false)
+
   // OCR Upload state
   const [rawText, setRawText] = useState("")
   const [extracting, setExtracting] = useState(false)
@@ -117,6 +168,41 @@ export default function CreateExamPage() {
   const [questions, setQuestions] = useState<ParsedQuestion[]>([])
   const [saving, setSaving] = useState(false)
   const [publishedCode, setPublishedCode] = useState<string | null>(null)
+
+  // Run AI Question Generation
+  const handleGenerateAiExam = async () => {
+    setIsAiGenerating(true)
+    setOcrMsg("")
+    try {
+      const res = await api.post("/admin/questions/ai-generate", {
+        subject: aiSubject,
+        topic: aiTopic === "ALL" ? undefined : aiTopic,
+        difficulty: aiDifficulty,
+        count: aiCount,
+        language: aiLanguage
+      })
+
+      if (res.data?.questions && res.data.questions.length > 0) {
+        const generated: ParsedQuestion[] = res.data.questions.map((q: any) => ({
+          text: q.text,
+          subject: q.subject || aiSubject,
+          difficulty: q.difficulty || aiDifficulty,
+          marks: q.marks || 2,
+          explanation: q.explanation || "Detailed solution steps by Rexam AI.",
+          options: q.options || [],
+          detectedLanguage: q.language || aiLanguage
+        }))
+
+        setQuestions(generated)
+        setDetectedLanguage(`Rexam AI Generated (${aiSubject})`)
+        setStep(3)
+      }
+    } catch (err: any) {
+      setOcrMsg("Failed to generate AI questions. Please try again.")
+    } finally {
+      setIsAiGenerating(false)
+    }
+  }
 
   // Run OCR processing
   const handleProcessOcr = async () => {
@@ -134,7 +220,7 @@ export default function CreateExamPage() {
         setStep(3)
       }
     } catch (err: any) {
-      setOcrMsg(err.response?.data?.message || "OCR extraction failed. Please check the raw text format and try again.")
+      setOcrMsg(err.response?.data?.message || "OCR extraction failed. Please check raw text format and try again.")
     } finally {
       setExtracting(false)
     }
@@ -205,11 +291,11 @@ export default function CreateExamPage() {
       <div className="glass p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-blue-500/10 via-background to-indigo-500/10 flex items-center justify-between gap-6">
         <div>
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300 mb-2">
-            <Globe className="h-3.5 w-3.5" />
-            <span>Universal Multilingual OCR Engine</span>
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>AI Exam Creation & Universal OCR Engine</span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight font-outfit text-white">Create & Publish Examination</h1>
-          <p className="text-muted-foreground text-sm mt-1">Upload question papers in any language (English, Hindi, Tamil, Telugu, Bilingual), extract via AI OCR, and publish CBT test codes.</p>
+          <p className="text-muted-foreground text-sm mt-1">Generate dynamic Aptitude, Reasoning, and Verbal questions with AI, or upload multilingual test papers via OCR.</p>
         </div>
       </div>
 
@@ -244,7 +330,7 @@ export default function CreateExamPage() {
               1. Basic Details
             </span>
             <span className={`px-4 py-2 rounded-full ${step === 2 ? "bg-blue-600 text-white" : "bg-secondary text-slate-400"}`}>
-              2. Multilingual OCR Processing
+              2. Question Ingestion (AI Generator / OCR)
             </span>
             <span className={`px-4 py-2 rounded-full ${step === 3 ? "bg-blue-600 text-white" : "bg-secondary text-slate-400"}`}>
               3. Review & Publish ({questions.length} Questions)
@@ -258,7 +344,7 @@ export default function CreateExamPage() {
                 <label className="text-xs font-semibold text-slate-300">Exam Title</label>
                 <input
                   type="text"
-                  placeholder="e.g. SSC CGL Tier 1 Full Assessment 2026"
+                  placeholder="e.g. SSC CGL Tier 1 Quantitative Aptitude & Reasoning Mock Test"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-white/10 text-white text-xs font-bold focus:outline-none focus:border-blue-400"
@@ -269,7 +355,7 @@ export default function CreateExamPage() {
                 <label className="text-xs font-semibold text-slate-300">Exam Description</label>
                 <textarea
                   rows={3}
-                  placeholder="Instructions, negative marking details, or syllabus overview for candidates..."
+                  placeholder="Instructions, syllabus overview, or negative marking guidelines for candidates..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-white/10 text-white text-xs font-semibold focus:outline-none focus:border-blue-400 resize-none"
@@ -310,77 +396,196 @@ export default function CreateExamPage() {
 
               <div className="pt-4 flex justify-end">
                 <Button disabled={!title.trim()} onClick={() => setStep(2)} className="rounded-2xl px-8 font-bold bg-blue-600 hover:bg-blue-500">
-                  Continue to Question Upload & OCR
+                  Continue to Question Setup
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </div>
           )}
 
-          {/* STEP 2: UPLOAD & OCR */}
+          {/* STEP 2: INGESTION (AI GENERATOR / OCR) */}
           {step === 2 && (
             <div className="space-y-6">
-              {/* Multilingual Quick Presets */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-                    <span>Try Multilingual Sample Templates</span>
-                  </label>
-                  <span className="text-[10px] text-slate-400">Click a template to auto-populate</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {SAMPLE_TEMPLATES.map((tmpl, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setRawText(tmpl.text)}
-                      className="p-2.5 rounded-xl bg-secondary/40 border border-white/10 hover:border-blue-400/50 hover:bg-blue-500/10 text-left transition-all text-xs"
+              {/* Ingestion Mode Selector Tabs */}
+              <div className="grid grid-cols-2 gap-3 p-1.5 rounded-2xl bg-secondary/40 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIngestionMode("AI_GEN")}
+                  className={`py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all ${
+                    ingestionMode === "AI_GEN"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/25"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Wand2 className="h-4 w-4" />
+                  <span>AI Question Generator (Aptitude & Reasoning)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIngestionMode("OCR")}
+                  className={`py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all ${
+                    ingestionMode === "OCR"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/25"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Globe className="h-4 w-4" />
+                  <span>Universal OCR Upload & Paste</span>
+                </button>
+              </div>
+
+              {/* AI GENERATOR TAB */}
+              {ingestionMode === "AI_GEN" && (
+                <div className="p-6 rounded-2xl bg-indigo-950/20 border border-indigo-500/30 space-y-5">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                      <Sparkles className="h-4 w-4 text-indigo-400" />
+                      <span>Instant AI Exam Question Builder</span>
+                    </h3>
+                    <p className="text-xs text-slate-300">Generate high-yield questions for Quantitative Aptitude, Logical Reasoning, and Verbal Ability with complete solutions.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
+                    <div className="space-y-1">
+                      <label className="text-slate-300">Subject</label>
+                      <select
+                        value={aiSubject}
+                        onChange={(e) => {
+                          setAiSubject(e.target.value)
+                          setAiTopic("ALL")
+                        }}
+                        className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 border border-white/10 text-white focus:outline-none"
+                      >
+                        <option value="Quantitative Aptitude">Quantitative Aptitude (Aptitude)</option>
+                        <option value="Logical Reasoning">Logical Reasoning (Reasoning)</option>
+                        <option value="Verbal Ability">Verbal Ability & Reasoning</option>
+                        <option value="General Awareness">General Awareness</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-slate-300">Topic</label>
+                      <select
+                        value={aiTopic}
+                        onChange={(e) => setAiTopic(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 border border-white/10 text-white focus:outline-none"
+                      >
+                        {(TOPIC_SUGGESTIONS[aiSubject] || ["ALL"]).map(t => (
+                          <option key={t} value={t}>{t === "ALL" ? "All Topics (Balanced)" : t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-slate-300">Difficulty</label>
+                      <select
+                        value={aiDifficulty}
+                        onChange={(e) => setAiDifficulty(e.target.value as any)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 border border-white/10 text-white focus:outline-none"
+                      >
+                        <option value="EASY">Easy (Foundation)</option>
+                        <option value="MEDIUM">Medium (Standard Exam)</option>
+                        <option value="HARD">Hard (Advanced)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-slate-300">Number of Questions</label>
+                      <select
+                        value={aiCount}
+                        onChange={(e) => setAiCount(Number(e.target.value))}
+                        className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 border border-white/10 text-white focus:outline-none"
+                      >
+                        <option value={5}>5 Questions</option>
+                        <option value={10}>10 Questions</option>
+                        <option value={15}>15 Questions</option>
+                        <option value={20}>20 Questions</option>
+                        <option value={25}>25 Questions</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between">
+                    <Button variant="outline" onClick={() => setStep(1)} className="rounded-2xl">Back</Button>
+                    <Button 
+                      onClick={handleGenerateAiExam} 
+                      disabled={isAiGenerating}
+                      className="rounded-2xl px-8 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-indigo-500/25 text-white"
                     >
-                      <div className="font-bold text-white truncate">{tmpl.name}</div>
-                      <div className="text-[10px] text-blue-300">{tmpl.lang}</div>
-                    </button>
-                  ))}
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      {isAiGenerating ? "Generating AI Exam..." : `Generate ${aiCount} Questions with AI`}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="p-8 rounded-3xl border-2 border-dashed border-blue-500/40 bg-blue-950/10 text-center space-y-4">
-                <Upload className="h-10 w-10 text-blue-400 mx-auto" />
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-white">Upload Question Paper File (PDF, DOCX, TXT, Images)</h3>
-                  <p className="text-xs text-slate-400">Supports English, Hindi, Tamil, Telugu, and all regional/bilingual question papers.</p>
+              {/* OCR UPLOAD & PASTE TAB */}
+              {ingestionMode === "OCR" && (
+                <div className="space-y-6">
+                  {/* Multilingual Quick Presets */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                        <span>Try Multilingual Sample Templates</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">Click a template to auto-populate</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {SAMPLE_TEMPLATES.map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setRawText(tmpl.text)}
+                          className="p-2.5 rounded-xl bg-secondary/40 border border-white/10 hover:border-blue-400/50 hover:bg-blue-500/10 text-left transition-all text-xs"
+                        >
+                          <div className="font-bold text-white truncate">{tmpl.name}</div>
+                          <div className="text-[10px] text-blue-300">{tmpl.lang}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-8 rounded-3xl border-2 border-dashed border-blue-500/40 bg-blue-950/10 text-center space-y-4">
+                    <Upload className="h-10 w-10 text-blue-400 mx-auto" />
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-white">Upload Question Paper File (PDF, DOCX, TXT, Images)</h3>
+                      <p className="text-xs text-slate-400">Supports English, Hindi, Tamil, Telugu, and all regional/bilingual question papers.</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.txt,image/*"
+                      onChange={handleFileUpload}
+                      className="block mx-auto text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Question Paper Raw Feed / Paste OCR Text</label>
+                      <span className="text-[10px] text-slate-400">Auto-detects options: (A), (B), (C), (D) or (1), (2) or (क), (ख) or (அ), (ஆ)</span>
+                    </div>
+                    <textarea
+                      rows={8}
+                      placeholder="Paste question paper text here in any language, e.g.&#10;1. What is the chemical formula of Water?&#10;A. H2O (correct)&#10;B. CO2&#10;C. NaCl&#10;D. O2&#10;&#10;प्रश्न 2: भारत की राजधानी क्या है?&#10;(क) नई दिल्ली (correct)&#10;(ख) मुंबई&#10;(ग) कोलकाता&#10;(घ) चेन्नई"
+                      value={rawText}
+                      onChange={(e) => setRawText(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-blue-400 resize-none"
+                    />
+                  </div>
+
+                  {ocrMsg && <p className="text-xs text-rose-400 font-semibold">{ocrMsg}</p>}
+
+                  <div className="flex items-center justify-between pt-4">
+                    <Button variant="outline" onClick={() => setStep(1)} className="rounded-2xl">Back</Button>
+                    <Button disabled={extracting || !rawText.trim()} onClick={handleProcessOcr} className="rounded-2xl px-8 font-bold bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20">
+                      <Cpu className="h-4 w-4 mr-2" />
+                      {extracting ? "Extracting Multilingual Questions..." : "Extract Questions via Universal OCR"}
+                    </Button>
+                  </div>
                 </div>
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.txt,image/*"
-                  onChange={handleFileUpload}
-                  className="block mx-auto text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Question Paper Raw Feed / Paste OCR Text</label>
-                  <span className="text-[10px] text-slate-400">Auto-detects options: (A), (B), (C), (D) or (1), (2) or (क), (ख) or (அ), (ஆ)</span>
-                </div>
-                <textarea
-                  rows={8}
-                  placeholder="Paste question paper text here in any language, e.g.&#10;1. What is the chemical formula of Water?&#10;A. H2O (correct)&#10;B. CO2&#10;C. NaCl&#10;D. O2&#10;&#10;प्रश्न 2: भारत की राजधानी क्या है?&#10;(क) नई दिल्ली (correct)&#10;(ख) मुंबई&#10;(ग) कोलकाता&#10;(घ) चेन्नई"
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-blue-400 resize-none"
-                />
-              </div>
-
-              {ocrMsg && <p className="text-xs text-rose-400 font-semibold">{ocrMsg}</p>}
-
-              <div className="flex items-center justify-between pt-4">
-                <Button variant="outline" onClick={() => setStep(1)} className="rounded-2xl">Back</Button>
-                <Button disabled={extracting || !rawText.trim()} onClick={handleProcessOcr} className="rounded-2xl px-8 font-bold bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20">
-                  <Cpu className="h-4 w-4 mr-2" />
-                  {extracting ? "Extracting Multilingual Questions..." : "Extract Questions via Universal OCR"}
-                </Button>
-              </div>
+              )}
             </div>
           )}
 
@@ -390,15 +595,15 @@ export default function CreateExamPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-secondary/40 border border-white/10">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h3 className="text-lg font-bold text-white font-outfit">Extracted Questions ({questions.length})</h3>
+                    <h3 className="text-lg font-bold text-white font-outfit">Exam Questions ({questions.length})</h3>
                     {detectedLanguage && (
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center space-x-1">
-                        <Globe className="h-3 w-3 inline mr-1" />
+                        <Sparkles className="h-3 w-3 inline mr-1" />
                         {detectedLanguage}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400">Review options, verify correct answer radio buttons, and edit explanations before publishing.</p>
+                  <p className="text-xs text-slate-400">Review questions, verify correct answer radio buttons, and edit explanations before publishing.</p>
                 </div>
                 <Button size="sm" onClick={handleAddCustomQuestion} variant="outline" className="rounded-xl text-xs font-bold shrink-0">
                   + Add Custom Question
@@ -417,7 +622,7 @@ export default function CreateExamPage() {
                     </button>
 
                     <div className="space-y-1">
-                      <span className="text-xs font-bold text-blue-400 font-outfit">Question {qIdx + 1}</span>
+                      <span className="text-xs font-bold text-blue-400 font-outfit">Question {qIdx + 1} ({q.subject})</span>
                       <textarea
                         rows={2}
                         value={q.text}
@@ -481,7 +686,7 @@ export default function CreateExamPage() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                <Button variant="outline" onClick={() => setStep(2)} className="rounded-2xl">Back to OCR</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="rounded-2xl">Back to Ingestion</Button>
                 <Button
                   disabled={saving || questions.length === 0}
                   onClick={handlePublishExam}

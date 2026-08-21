@@ -16,7 +16,8 @@ import {
   Check,
   Globe,
   Cpu,
-  Layers
+  Layers,
+  Wand2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
@@ -77,6 +78,45 @@ const INITIAL_QUESTIONS: QuestionItem[] = [
   }
 ]
 
+const TOPIC_SUGGESTIONS: Record<string, string[]> = {
+  "Quantitative Aptitude": [
+    "ALL",
+    "Profit & Loss",
+    "Speed, Time & Distance",
+    "Simple & Compound Interest",
+    "Time & Work",
+    "Percentages & Ratio",
+    "Number Systems",
+    "Mensuration & Geometry"
+  ],
+  "Logical Reasoning": [
+    "ALL",
+    "Syllogism",
+    "Blood Relations",
+    "Coding-Decoding",
+    "Number & Letter Series",
+    "Direction Sense",
+    "Seating Arrangement",
+    "Analogy & Classification"
+  ],
+  "Verbal Ability": [
+    "ALL",
+    "Synonyms & Antonyms",
+    "Grammar & Spotting Errors",
+    "Sentence Improvement",
+    "Idioms & Phrases",
+    "Reading Comprehension"
+  ],
+  "General Awareness": [
+    "ALL",
+    "Indian Polity & Governance",
+    "Indian History",
+    "Geography & Environment",
+    "General Science",
+    "Current Affairs"
+  ]
+}
+
 export default function AdminQuestionsPage() {
   const [questions, setQuestions] = useState<QuestionItem[]>(INITIAL_QUESTIONS)
   const [selectedSubject, setSelectedSubject] = useState("ALL")
@@ -85,8 +125,9 @@ export default function AdminQuestionsPage() {
   // Modal State
   const [showAddModal, setShowAddModal] = useState(false)
   const [showOcrModal, setShowOcrModal] = useState(false)
+  const [showAiModal, setShowAiModal] = useState(false)
 
-  // Question Form
+  // Manual Question Form
   const [subject, setSubject] = useState("Quantitative Aptitude")
   const [topic, setTopic] = useState("")
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium")
@@ -97,6 +138,14 @@ export default function AdminQuestionsPage() {
   const [opt3, setOpt3] = useState("")
   const [correctIndex, setCorrectIndex] = useState(0)
   const [explanation, setExplanation] = useState("")
+
+  // AI Generator State
+  const [aiSubject, setAiSubject] = useState("Quantitative Aptitude")
+  const [aiTopic, setAiTopic] = useState("ALL")
+  const [aiDifficulty, setAiDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM")
+  const [aiCount, setAiCount] = useState(5)
+  const [aiLanguage, setAiLanguage] = useState("English")
+  const [isAiGenerating, setIsAiGenerating] = useState(false)
 
   // OCR Modal States
   const [ocrText, setOcrText] = useState("")
@@ -125,6 +174,47 @@ export default function AdminQuestionsPage() {
     setShowAddModal(false)
     resetForm()
     showToast("Added new question to repository!")
+  }
+
+  // Handle AI Question Generation
+  const handleGenerateAi = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsAiGenerating(true)
+
+    try {
+      const res = await api.post("/admin/questions/ai-generate", {
+        subject: aiSubject,
+        topic: aiTopic === "ALL" ? undefined : aiTopic,
+        difficulty: aiDifficulty,
+        count: aiCount,
+        language: aiLanguage
+      })
+
+      if (res.data?.questions && res.data.questions.length > 0) {
+        const generated: QuestionItem[] = res.data.questions.map((q: any, idx: number) => {
+          const correctIdx = q.options.findIndex((o: any) => o.isCorrect)
+          return {
+            id: `ai-gen-${Date.now()}-${idx}`,
+            subject: q.subject || aiSubject,
+            topic: q.topic || "AI Generated",
+            difficulty: q.difficulty === "HARD" ? "Hard" : q.difficulty === "EASY" ? "Easy" : "Medium",
+            text: q.text,
+            options: q.options.map((o: any) => o.text),
+            correctIndex: correctIdx >= 0 ? correctIdx : 0,
+            explanation: q.explanation || "Detailed step-by-step solution by Rexam AI.",
+            language: q.language || aiLanguage
+          }
+        })
+
+        setQuestions(prev => [...generated, ...prev])
+        setShowAiModal(false)
+        showToast(`✨ Generated ${generated.length} AI questions in ${aiSubject}!`)
+      }
+    } catch (err: any) {
+      showToast("Failed to generate AI questions. Please try again.")
+    } finally {
+      setIsAiGenerating(false)
+    }
   }
 
   const handleOcrFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,14 +316,22 @@ export default function AdminQuestionsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 glass p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-primary/10 via-background to-secondary/30">
         <div>
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
-            <Globe className="h-3.5 w-3.5" />
-            <span>Universal Multilingual Repository</span>
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <span>AI Question Engine & Repository</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Question Bank & Universal AI OCR</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage question bank items, configure explanations, or bulk upload test papers in any language using AI OCR.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Question Bank & AI Generator</h1>
+          <p className="text-muted-foreground text-sm mt-1">Generate dynamic exam questions for Quantitative Aptitude, Logical Reasoning, and Verbal Ability, or upload test papers via OCR.</p>
         </div>
 
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2.5">
+          <Button 
+            onClick={() => setShowAiModal(true)}
+            className="rounded-full px-5 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-indigo-500/25 text-white"
+          >
+            <Wand2 className="h-4 w-4 mr-2" />
+            AI Generate Questions
+          </Button>
+
           <Button 
             onClick={() => setShowOcrModal(true)}
             variant="outline" 
@@ -242,12 +340,14 @@ export default function AdminQuestionsPage() {
             <Upload className="h-4 w-4 mr-2 text-primary" />
             Universal OCR Upload
           </Button>
+
           <Button 
             onClick={() => setShowAddModal(true)}
-            className="rounded-full px-6 font-bold shadow-lg shadow-primary/20"
+            variant="secondary"
+            className="rounded-full px-5 font-bold"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Question
+            Add Manual
           </Button>
         </div>
       </div>
@@ -336,7 +436,128 @@ export default function AdminQuestionsPage() {
         ))}
       </div>
 
-      {/* Add Question Modal */}
+      {/* AI GENERATOR MODAL */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass p-8 rounded-3xl border border-white/10 max-w-xl w-full space-y-6 relative max-h-[90vh] overflow-y-auto"
+          >
+            <button 
+              onClick={() => setShowAiModal(false)}
+              className="absolute top-6 right-6 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-1">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-bold text-indigo-400 mb-1">
+                <Wand2 className="h-3.5 w-3.5" />
+                <span>AI Question Generator</span>
+              </div>
+              <h3 className="text-2xl font-bold">Generate Questions via Rexam AI</h3>
+              <p className="text-xs text-muted-foreground">Select your subject, targeted topic, difficulty, and quantity. Rexam AI creates exam-grade questions with solutions in seconds.</p>
+            </div>
+
+            <form onSubmit={handleGenerateAi} className="space-y-4 text-xs font-semibold">
+              {/* Subject */}
+              <div className="space-y-1">
+                <label className="text-muted-foreground">Subject Area</label>
+                <select
+                  value={aiSubject}
+                  onChange={(e) => {
+                    setAiSubject(e.target.value)
+                    setAiTopic("ALL")
+                  }}
+                  className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-border/80 text-sm focus:outline-none focus:border-indigo-400 font-bold"
+                >
+                  <option value="Quantitative Aptitude">Quantitative Aptitude (Mathematics & Calculation)</option>
+                  <option value="Logical Reasoning">Logical Reasoning (Deduction, Series, Relations)</option>
+                  <option value="Verbal Ability">Verbal Ability & Reasoning (English Grammar & Vocab)</option>
+                  <option value="General Awareness">General Awareness (Polity, History, Science)</option>
+                </select>
+              </div>
+
+              {/* Topic & Difficulty */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Target Topic</label>
+                  <select
+                    value={aiTopic}
+                    onChange={(e) => setAiTopic(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    {(TOPIC_SUGGESTIONS[aiSubject] || ["ALL"]).map(t => (
+                      <option key={t} value={t}>{t === "ALL" ? "All Topics (Balanced Mix)" : t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Difficulty Level</label>
+                  <select
+                    value={aiDifficulty}
+                    onChange={(e) => setAiDifficulty(e.target.value as any)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    <option value="EASY">Easy (Beginner / Tier-1)</option>
+                    <option value="MEDIUM">Medium (Standard Exam Level)</option>
+                    <option value="HARD">Hard (Advanced Problem Solving)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Count & Language */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Number of Questions</label>
+                  <select
+                    value={aiCount}
+                    onChange={(e) => setAiCount(Number(e.target.value))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    <option value={5}>5 Questions</option>
+                    <option value={10}>10 Questions</option>
+                    <option value={15}>15 Questions</option>
+                    <option value={20}>20 Questions</option>
+                    <option value={25}>25 Questions</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-muted-foreground">Language / Medium</label>
+                  <select
+                    value={aiLanguage}
+                    onChange={(e) => setAiLanguage(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none"
+                  >
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi (हिंदी)</option>
+                    <option value="Tamil">Tamil (தமிழ்)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-border/40">
+                <Button type="button" variant="ghost" onClick={() => setShowAiModal(false)} className="rounded-xl">
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isAiGenerating}
+                  className="rounded-xl px-8 font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-indigo-500/25 text-white"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {isAiGenerating ? "Generating Questions..." : `Generate ${aiCount} Questions`}
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Manual Add Question Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
           <motion.div 

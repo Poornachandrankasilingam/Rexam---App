@@ -336,3 +336,42 @@ export const createPyq = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(500).json({ message: 'Failed to create PYQ', error: error.message });
   }
 };
+
+/**
+ * AI Question Generator Endpoint
+ * Generates custom test questions in Aptitude, Reasoning, and Verbal Ability
+ */
+export const generateAiQuestionsHandler = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!checkAdmin(req, res)) return;
+
+    const {
+      subject = "Quantitative Aptitude",
+      topic,
+      difficulty = "MEDIUM",
+      count = 5,
+      language = "English"
+    } = req.body;
+
+    const { generateAiQuestions } = await import('../services/aiQuestionGeneratorService.js');
+
+    const generated = generateAiQuestions({
+      subject,
+      topic,
+      difficulty,
+      count: Number(count) || 5,
+      language
+    });
+
+    return res.status(200).json({
+      message: `Generated ${generated.length} AI questions for ${subject}`,
+      questions: generated,
+      count: generated.length,
+      subject,
+      language
+    });
+  } catch (error: any) {
+    console.error('❌ AI Question Generation Error:', error);
+    return res.status(500).json({ message: 'Failed to generate AI questions', error: error.message });
+  }
+};

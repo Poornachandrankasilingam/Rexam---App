@@ -10,7 +10,8 @@ import {
   getExamAttempts,
   getProctoringReports,
   getAdminPyqs,
-  createPyq
+  createPyq,
+  generateAiQuestionsHandler
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -20,6 +21,7 @@ router.use(authenticateJWT, requireAdmin);
 
 router.get('/dashboard', getAdminDashboard);
 router.post('/exams/ocr-extract', extractQuestionsFromDoc);
+router.post('/questions/ai-generate', generateAiQuestionsHandler);
 router.post('/exams/create', createExam);
 router.get('/exams', getAllExams);
 router.delete('/exams/:id', deleteExam);
