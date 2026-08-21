@@ -5,11 +5,21 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 const API_URL = 'http://localhost:5000';
-let server: Server;
+let server: Server | null = null;
 
 async function runTests() {
   console.log('🧪 Starting Project Models, Enhanced OTP Login & API End-to-End Tests...\n');
-  server = app.listen(5000);
+  try {
+    server = app.listen(5000);
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        // Dev server already running on port 5000
+        server = null;
+      }
+    });
+  } catch (e) {
+    server = null;
+  }
   let testsPassed = 0;
   let totalTests = 0;
 

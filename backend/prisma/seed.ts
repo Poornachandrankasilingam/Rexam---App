@@ -7,21 +7,44 @@ async function main() {
   console.log('🌱 Seeding Rexam Database with Demo Accounts...');
 
   const adminPassword = await bcrypt.hash('admin123', 10);
+  const userAdminPassword = await bcrypt.hash('962943', 10);
   const studentPassword = await bcrypt.hash('student123', 10);
 
-  // Seed Admin Account
+  // Seed Primary Admin Account
+  const mainAdmin = await prisma.user.upsert({
+    where: { email: 'poornachandran106@gmail.com' },
+    update: {
+      password: userAdminPassword,
+      name: 'Poornachandran (Admin)',
+      role: 'ADMIN',
+      emailVerified: true
+    },
+    create: {
+      email: 'poornachandran106@gmail.com',
+      password: userAdminPassword,
+      name: 'Poornachandran (Admin)',
+      role: 'ADMIN',
+      emailVerified: true,
+      phone: '9629430000'
+    }
+  });
+  console.log(`✅ Main Admin Account Seeded: ${mainAdmin.email} (Password: 962943)`);
+
+  // Seed Demo Admin Account
   const admin = await prisma.user.upsert({
     where: { email: 'admin@rexam.com' },
     update: {
       password: adminPassword,
       name: 'Demo Admin',
-      role: 'ADMIN'
+      role: 'ADMIN',
+      emailVerified: true
     },
     create: {
       email: 'admin@rexam.com',
       password: adminPassword,
       name: 'Demo Admin',
       role: 'ADMIN',
+      emailVerified: true,
       phone: '9999999999'
     }
   });

@@ -29,8 +29,8 @@ export default function LoginPage() {
 
   const handleQuickDemo = (role: "STUDENT" | "ADMIN") => {
     if (role === "ADMIN") {
-      setIdentifier("admin@rexam.com")
-      setPassword("admin123")
+      setIdentifier("poornachandran106@gmail.com")
+      setPassword("962943")
     } else {
       setIdentifier("student@rexam.com")
       setPassword("student123")

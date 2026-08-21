@@ -5,11 +5,20 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const API_URL = 'http://localhost:5000';
-let server: Server;
+let server: Server | null = null;
 
 async function runTests() {
   console.log('🧪 Starting Rexam AI Performance Coach Automated Test Suite...\n');
-  server = app.listen(5000);
+  try {
+    server = app.listen(5000);
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        server = null;
+      }
+    });
+  } catch (e) {
+    server = null;
+  }
 
   let passed = 0;
   let failed = 0;

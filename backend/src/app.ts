@@ -5,18 +5,19 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Ensure .env is loaded from backend directory or project root
+// Ensure .env is loaded from backend directory, project root, or parent
 const possibleEnvPaths = [
+  path.resolve(process.cwd(), '.env'),
   path.resolve(process.cwd(), 'backend', '.env'),
-  path.resolve(process.cwd(), '.env')
+  path.resolve(process.cwd(), '..', '.env')
 ];
 
 for (const p of possibleEnvPaths) {
   if (fs.existsSync(p)) {
-    dotenv.config({ path: p });
+    dotenv.config({ path: p, override: true });
   }
 }
-dotenv.config();
+dotenv.config({ override: true });
 
 import authRoutes from './routes/auth.routes.js';
 import studentRoutes from './routes/student.routes.js';
