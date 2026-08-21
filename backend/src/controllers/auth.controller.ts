@@ -524,11 +524,20 @@ export const resetPassword = async (req: Request, res: Response) => {
 };
 
 /**
- * Get Google OAuth 2.0 Authorization URL
+ * Helper to resolve and sanitize Google OAuth credentials and redirect URI
  */
-export const getGoogleAuthUrl = (req: Request, res: Response) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+const getGoogleCredentials = (req: Request) => {
+  const sanitize = (val?: string) => val ? val.replace(/^["']|["']$/g, '').trim() : '';
+  const clientId = sanitize(process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID);
+  const clientSecret = sanitize(process.env.GOOGLE_CLIENT_SECRET);
+  
+  let redirectUri = sanitize(process.env.GOOGLE_CALLBACK_URL);
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.get('host');
+
+  if (!redirectUri || (redirectUri.includes('localhost') && (process.env.NODE_ENV === 'production' || process.env.VERCEL))) {
+    redirectUri = `${protocol}://${host}/api/auth/google/callback`;
+  }
 
   const isConfigured = Boolean(
     clientId && 
@@ -536,10 +545,19 @@ export const getGoogleAuthUrl = (req: Request, res: Response) => {
     clientId.includes('.apps.googleusercontent.com')
   );
 
+  return { clientId, clientSecret, redirectUri, isConfigured };
+};
+
+/**
+ * Get Google OAuth 2.0 Authorization URL
+ */
+export const getGoogleAuthUrl = (req: Request, res: Response) => {
+  const { clientId, redirectUri, isConfigured } = getGoogleCredentials(req);
+
   if (!isConfigured) {
     return res.status(200).json({
       configured: false,
-      message: "Google OAuth credentials not configured in server environment variables.",
+      message: "Google OAuth credentials not configured in server environment variables. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env or Vercel Settings.",
       redirectUri
     });
   }
@@ -547,7 +565,7 @@ export const getGoogleAuthUrl = (req: Request, res: Response) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const options = {
     redirect_uri: redirectUri,
-    client_id: clientId!,
+    client_id: clientId,
     access_type: 'offline',
     response_type: 'code',
     prompt: 'select_account',
@@ -574,7 +592,10 @@ export const googleCallback = async (req: Request, res: Response) => {
   console.log("-----------------------------------------");
   console.log("🚀 Incoming Google OAuth Callback");
 
-  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000';
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.get('host');
+  const fallbackFrontend = `${protocol}://${host}`;
+  const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || fallbackFrontend;
   const { code, error, error_description } = req.query;
 
   if (error) {
@@ -589,13 +610,11 @@ export const googleCallback = async (req: Request, res: Response) => {
     return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('No authorization code was received from Google.')}`);
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+  const { clientId, clientSecret, redirectUri, isConfigured } = getGoogleCredentials(req);
 
-  if (!clientId || !clientSecret || clientId.includes('your_google_client_id_here') || clientSecret.includes('your_google_client_secret_here')) {
+  if (!isConfigured || !clientSecret || clientSecret.includes('your_google_client_secret_here')) {
     console.error("❌ Google OAuth credentials missing or invalid in server environment.");
-    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Google OAuth server credentials are not configured.')}`);
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent('Google OAuth server credentials are not configured in environment variables.')}`);
   }
 
   try {

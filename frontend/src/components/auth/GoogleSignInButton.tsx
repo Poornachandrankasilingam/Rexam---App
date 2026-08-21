@@ -143,7 +143,7 @@ export function GoogleSignInButton({
 
       // 3. If credentials are not yet configured in environment variables
       setLoading(false)
-      const configErrorMsg = "Google OAuth is not configured yet. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env to connect Google Cloud Console."
+      const configErrorMsg = res.data?.message || "Google OAuth credentials not configured on the server. Please ensure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set in your environment variables (backend/.env or Vercel Settings)."
       if (onError) {
         onError(configErrorMsg)
       } else {
