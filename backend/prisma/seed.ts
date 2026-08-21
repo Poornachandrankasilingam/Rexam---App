@@ -10,25 +10,25 @@ async function main() {
   const userAdminPassword = await bcrypt.hash('962943', 10);
   const studentPassword = await bcrypt.hash('student123', 10);
 
-  // Seed Primary Admin Account
+  // Seed Primary Super Admin Account
   const mainAdmin = await prisma.user.upsert({
     where: { email: 'poornachandran106@gmail.com' },
     update: {
       password: userAdminPassword,
-      name: 'Poornachandran (Admin)',
-      role: 'ADMIN',
+      name: 'Poornachandran (Super Admin)',
+      role: 'SUPER_ADMIN',
       emailVerified: true
     },
     create: {
       email: 'poornachandran106@gmail.com',
       password: userAdminPassword,
-      name: 'Poornachandran (Admin)',
-      role: 'ADMIN',
+      name: 'Poornachandran (Super Admin)',
+      role: 'SUPER_ADMIN',
       emailVerified: true,
       phone: '9629430000'
     }
   });
-  console.log(`✅ Main Admin Account Seeded: ${mainAdmin.email} (Password: 962943)`);
+  console.log(`✅ Main Super Admin Account Seeded: ${mainAdmin.email} (Password: 962943, Role: SUPER_ADMIN)`);
 
   // Seed Demo Admin Account
   const admin = await prisma.user.upsert({

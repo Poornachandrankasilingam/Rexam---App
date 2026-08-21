@@ -660,8 +660,12 @@ export const googleCallback = async (req: Request, res: Response) => {
       }
     });
 
+    const isSuperAdminEmail = cleanEmail === 'poornachandran106@gmail.com';
+    const isAdminEmail = cleanEmail === 'admin@rexam.com';
+    const assignedRole = isSuperAdminEmail ? 'SUPER_ADMIN' : (isAdminEmail || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? 'ADMIN' : (user?.role || 'STUDENT');
+
     if (!user) {
-      // 4. Create new Student Account (Never automatically create ADMIN)
+      // 4. Create new Account (ADMIN for owner/admin emails, STUDENT by default)
       const randomPassword = crypto.randomBytes(32).toString('hex');
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -670,19 +674,20 @@ export const googleCallback = async (req: Request, res: Response) => {
           email: cleanEmail,
           name: cleanName,
           password: hashedPassword,
-          role: 'STUDENT',
+          role: assignedRole,
           authProvider: 'GOOGLE',
           googleId,
           avatar,
           emailVerified: true
         }
       });
-      console.log("✨ New student account created via Google OAuth with ID:", user.id);
+      console.log("✨ New account created via Google OAuth with ID:", user.id, `(Role: ${user.role})`);
     } else {
-      // 5. Link Google ID & Avatar to existing account safely
+      // 5. Link Google ID & Avatar and preserve/grant Admin role
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
+          role: assignedRole,
           googleId: user.googleId || googleId,
           avatar: avatar || user.avatar,
           emailVerified: true,
@@ -816,8 +821,12 @@ export const googleAuth = async (req: Request, res: Response) => {
       }
     });
 
+    const isSuperAdminEmail = cleanEmail === 'poornachandran106@gmail.com';
+    const isAdminEmail = cleanEmail === 'admin@rexam.com';
+    const assignedRole = isSuperAdminEmail ? 'SUPER_ADMIN' : (isAdminEmail || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? 'ADMIN' : (user?.role || 'STUDENT');
+
     if (!user) {
-      // 3. Auto-create new student user for Google sign-in
+      // 3. Auto-create user with appropriate role
       const randomPassword = crypto.randomBytes(32).toString('hex');
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
@@ -826,19 +835,20 @@ export const googleAuth = async (req: Request, res: Response) => {
           email: cleanEmail,
           name: cleanName,
           password: hashedPassword,
-          role: 'STUDENT',
+          role: assignedRole,
           authProvider: 'GOOGLE',
           googleId,
           avatar,
           emailVerified: true
         }
       });
-      console.log("✨ New student user created via Google Sign-In with ID:", user.id);
+      console.log("✨ New user created via Google Sign-In with ID:", user.id, `(Role: ${user.role})`);
     } else {
-      // Link Google metadata if missing
+      // Link Google metadata and ensure role
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
+          role: assignedRole,
           googleId: user.googleId || googleId,
           avatar: avatar || user.avatar,
           emailVerified: true,

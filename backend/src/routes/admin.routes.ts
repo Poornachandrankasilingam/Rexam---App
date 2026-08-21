@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticateJWT } from '../middlewares/auth.middleware.js';
+import { authenticateJWT, requireAdmin } from '../middlewares/auth.middleware.js';
 import {
   getAdminDashboard,
   extractQuestionsFromDoc,
@@ -15,8 +15,8 @@ import {
 
 const router = Router();
 
-// Protect all admin routes
-router.use(authenticateJWT);
+// Protect all admin routes (Admin or Super Admin only)
+router.use(authenticateJWT, requireAdmin);
 
 router.get('/dashboard', getAdminDashboard);
 router.post('/exams/ocr-extract', extractQuestionsFromDoc);
