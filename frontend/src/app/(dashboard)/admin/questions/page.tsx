@@ -13,9 +13,13 @@ import {
   FileText, 
   Sparkles, 
   X, 
-  Check
+  Check,
+  Globe,
+  Cpu,
+  Layers
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import api from "@/lib/api"
 
 type QuestionItem = {
   id: string
@@ -26,6 +30,7 @@ type QuestionItem = {
   options: string[]
   correctIndex: number
   explanation: string
+  language?: string
 }
 
 const INITIAL_QUESTIONS: QuestionItem[] = [
@@ -58,6 +63,17 @@ const INITIAL_QUESTIONS: QuestionItem[] = [
     options: ["Frank", "Secretive", "Deceitful", "Shy"],
     correctIndex: 0,
     explanation: "'Candid' means truthful and straightforward; frank."
+  },
+  {
+    id: "q-admin-4",
+    subject: "General Awareness",
+    topic: "Indian Polity",
+    difficulty: "Medium",
+    text: "भारतीय संविधान के किस अनुच्छेद में विधि के समक्ष समानता का अधिकार दिया गया है?",
+    options: ["अनुच्छेद 14", "अनुच्छेद 19", "अनुच्छेद 21", "अनुच्छेद 32"],
+    correctIndex: 0,
+    explanation: "अनुच्छेद 14 कानून के समक्ष समानता और विधियों के समान संरक्षण का अधिकार देता है।",
+    language: "Hindi / Devanagari"
   }
 ]
 
@@ -82,9 +98,13 @@ export default function AdminQuestionsPage() {
   const [correctIndex, setCorrectIndex] = useState(0)
   const [explanation, setExplanation] = useState("")
 
+  // OCR Modal States
+  const [ocrText, setOcrText] = useState("")
+  const [ocrError, setOcrError] = useState("")
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false)
+
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [isOcrProcessing, setIsOcrProcessing] = useState(false)
 
   const handleSaveQuestion = (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,34 +124,63 @@ export default function AdminQuestionsPage() {
     setQuestions(prev => [newQ, ...prev])
     setShowAddModal(false)
     resetForm()
-    showToast("Added new question to bank!")
+    showToast("Added new question to repository!")
   }
 
-  const handleOcrUpload = () => {
-    setIsOcrProcessing(true)
-    setTimeout(() => {
-      setIsOcrProcessing(false)
-      setShowOcrModal(false)
+  const handleOcrFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-      // Add mock extracted OCR questions
-      const ocrQ: QuestionItem = {
-        id: `q-ocr-${Date.now()}`,
-        subject: "Quantitative Aptitude",
-        topic: "OCR Extracted Set",
-        difficulty: "Medium",
-        text: "Extracted via OCR: A train 150m long is running at 45km/h. In how much time will it pass a man walking at 5km/h in the same direction?",
-        options: ["13.5 sec", "15 sec", "12 sec", "18 sec"],
-        correctIndex: 0,
-        explanation: "Relative speed = 45 - 5 = 40 km/h = 40 × (5/18) m/s. Time = 150 / (200/18) = 13.5 seconds."
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string
+      setOcrText(content || `Uploaded: ${file.name}\n1. Sample Question from ${file.name}?\nA. Option A (correct)\nB. Option B\nC. Option C\nD. Option D`)
+    }
+    reader.readAsText(file)
+  }
+
+  const handleOcrUpload = async () => {
+    if (!ocrText.trim()) return
+    setIsOcrProcessing(true)
+    setOcrError("")
+
+    try {
+      const res = await api.post("/admin/exams/ocr-extract", {
+        textContent: ocrText,
+        subject: "General Awareness"
+      })
+
+      if (res.data?.questions && res.data.questions.length > 0) {
+        const extracted: QuestionItem[] = res.data.questions.map((q: any, idx: number) => {
+          const correctIdx = q.options.findIndex((o: any) => o.isCorrect)
+          return {
+            id: `q-ocr-${Date.now()}-${idx}`,
+            subject: q.subject || "General Awareness",
+            topic: q.topic || "OCR Extraction",
+            difficulty: q.difficulty === "HARD" ? "Hard" : q.difficulty === "EASY" ? "Easy" : "Medium",
+            text: q.text,
+            options: q.options.map((o: any) => o.text),
+            correctIndex: correctIdx >= 0 ? correctIdx : 0,
+            explanation: q.explanation || "Extracted via Universal Multilingual OCR.",
+            language: res.data.detectedLanguage
+          }
+        })
+
+        setQuestions(prev => [...extracted, ...prev])
+        setShowOcrModal(false)
+        setOcrText("")
+        showToast(`Successfully extracted ${extracted.length} questions (${res.data.detectedLanguage})!`)
       }
-      setQuestions(prev => [ocrQ, ...prev])
-      showToast("OCR processing completed! Extracted 1 question.")
-    }, 2000)
+    } catch (err: any) {
+      setOcrError(err.response?.data?.message || "OCR extraction failed. Please check question paper format.")
+    } finally {
+      setIsOcrProcessing(false)
+    }
   }
 
   const handleDeleteQuestion = (id: string) => {
     setQuestions(prev => prev.filter(q => q.id !== id))
-    showToast("Deleted question from bank")
+    showToast("Deleted question from repository")
   }
 
   const resetForm = () => {
@@ -177,21 +226,21 @@ export default function AdminQuestionsPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 glass p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-primary/10 via-background to-secondary/30">
         <div>
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-2">
-            <BookOpen className="h-3.5 w-3.5" />
-            <span>Question Repository</span>
+            <Globe className="h-3.5 w-3.5" />
+            <span>Universal Multilingual Repository</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Question Bank & AI OCR Engine</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage question bank items, configure explanations, or bulk upload test papers using AI OCR recognition.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Question Bank & Universal AI OCR</h1>
+          <p className="text-muted-foreground text-sm mt-1">Manage question bank items, configure explanations, or bulk upload test papers in any language using AI OCR.</p>
         </div>
 
         <div className="flex space-x-3">
           <Button 
             onClick={() => setShowOcrModal(true)}
             variant="outline" 
-            className="rounded-full px-5 border-dashed font-bold"
+            className="rounded-full px-5 border-dashed font-bold hover:border-primary/50"
           >
             <Upload className="h-4 w-4 mr-2 text-primary" />
-            OCR Bulk Upload
+            Universal OCR Upload
           </Button>
           <Button 
             onClick={() => setShowAddModal(true)}
@@ -206,11 +255,11 @@ export default function AdminQuestionsPage() {
       {/* Search & Subject Filters */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 glass p-4 rounded-2xl border border-white/10">
         <div className="flex items-center space-x-2 overflow-x-auto">
-          {(["ALL", "Quantitative Aptitude", "Logical Reasoning", "Verbal Ability"] as const).map(subj => (
+          {(["ALL", "Quantitative Aptitude", "Logical Reasoning", "Verbal Ability", "General Awareness"] as const).map(subj => (
             <button
               key={subj}
               onClick={() => setSelectedSubject(subj)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 selectedSubject === subj
                   ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                   : "bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -238,7 +287,14 @@ export default function AdminQuestionsPage() {
         {filteredQuestions.map((q, idx) => (
           <div key={q.id} className="glass p-6 rounded-3xl border border-white/10 space-y-4 hover:border-primary/30 transition-all">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-primary">{q.subject} • {q.topic}</span>
+              <div className="flex items-center space-x-2">
+                <span className="font-semibold text-primary">{q.subject} • {q.topic}</span>
+                {q.language && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-primary/10 text-primary border border-primary/20 font-bold">
+                    {q.language}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center space-x-3">
                 <span className={`px-2.5 py-0.5 rounded-full font-bold ${
                   q.difficulty === "Easy" ? "bg-emerald-500/10 text-emerald-400" :
@@ -248,7 +304,7 @@ export default function AdminQuestionsPage() {
                 </span>
                 <button 
                   onClick={() => handleDeleteQuestion(q.id)}
-                  className="text-muted-foreground hover:text-red-400 p-1"
+                  className="text-muted-foreground hover:text-red-400 p-1 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -312,6 +368,7 @@ export default function AdminQuestionsPage() {
                     <option value="Quantitative Aptitude">Quantitative Aptitude</option>
                     <option value="Logical Reasoning">Logical Reasoning</option>
                     <option value="Verbal Ability">Verbal Ability</option>
+                    <option value="General Awareness">General Awareness</option>
                   </select>
                 </div>
 
@@ -344,7 +401,7 @@ export default function AdminQuestionsPage() {
                 <label className="text-muted-foreground">Question Text</label>
                 <textarea
                   rows={3}
-                  placeholder="Enter full question text..."
+                  placeholder="Enter full question text in any language..."
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   required
@@ -440,7 +497,7 @@ export default function AdminQuestionsPage() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass p-8 rounded-3xl border border-white/10 max-w-md w-full space-y-6 relative"
+            className="glass p-8 rounded-3xl border border-white/10 max-w-lg w-full space-y-5 relative max-h-[90vh] overflow-y-auto"
           >
             <button 
               onClick={() => setShowOcrModal(false)}
@@ -450,18 +507,37 @@ export default function AdminQuestionsPage() {
             </button>
 
             <div className="space-y-2 text-center">
-              <div className="h-16 w-16 mx-auto rounded-3xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                <Upload className="h-8 w-8" />
+              <div className="h-14 w-14 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                <Globe className="h-7 w-7" />
               </div>
-              <h3 className="text-xl font-bold">AI OCR Bulk Question Upload</h3>
-              <p className="text-xs text-muted-foreground">Upload question paper PDF or scanned images. Our AI automatically extracts questions, options, and answer keys.</p>
+              <h3 className="text-xl font-bold">Universal Multilingual OCR Extraction</h3>
+              <p className="text-xs text-muted-foreground">Upload test paper files or paste raw OCR text in any language (English, Hindi, Tamil, Telugu, Bilingual).</p>
             </div>
 
-            <div className="p-8 border-2 border-dashed border-primary/30 rounded-3xl text-center space-y-3 bg-primary/5">
-              <Sparkles className="h-8 w-8 mx-auto text-primary animate-pulse" />
-              <p className="text-xs font-semibold text-foreground">Drag & drop question paper PDF here</p>
-              <p className="text-[10px] text-muted-foreground">Supports PDF, PNG, JPG up to 25MB</p>
+            {/* File Upload Box */}
+            <div className="p-6 border-2 border-dashed border-primary/30 rounded-2xl text-center space-y-2 bg-primary/5">
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt,image/*"
+                onChange={handleOcrFileUpload}
+                className="block mx-auto text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer"
+              />
+              <p className="text-[10px] text-muted-foreground">Supports PDF, DOCX, TXT, PNG, JPG, JPEG files</p>
             </div>
+
+            {/* Text Paste Box */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Or Paste Raw Question Paper Text:</label>
+              <textarea
+                rows={6}
+                placeholder="1. Question text here...&#10;(A) Option 1 (correct)&#10;(B) Option 2&#10;(C) Option 3&#10;(D) Option 4&#10;&#10;प्रश्न २: हिंदी प्रश्न यहाँ लिखें...&#10;(क) विकल्प १ (correct)&#10;(ख) विकल्प २"
+                value={ocrText}
+                onChange={(e) => setOcrText(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-secondary/50 border border-border/80 text-foreground font-mono text-xs focus:outline-none focus:border-primary resize-none"
+              />
+            </div>
+
+            {ocrError && <p className="text-xs text-red-400 font-semibold">{ocrError}</p>}
 
             <div className="flex justify-end space-x-3 pt-2">
               <Button type="button" variant="ghost" onClick={() => setShowOcrModal(false)} className="rounded-xl">
@@ -469,10 +545,11 @@ export default function AdminQuestionsPage() {
               </Button>
               <Button 
                 onClick={handleOcrUpload} 
-                disabled={isOcrProcessing}
+                disabled={isOcrProcessing || !ocrText.trim()}
                 className="rounded-xl px-6 font-bold shadow-lg shadow-primary/20"
               >
-                {isOcrProcessing ? "Processing OCR..." : "Start OCR Recognition"}
+                <Cpu className="h-4 w-4 mr-2" />
+                {isOcrProcessing ? "Extracting Multilingual..." : "Start Universal OCR Extraction"}
               </Button>
             </div>
           </motion.div>

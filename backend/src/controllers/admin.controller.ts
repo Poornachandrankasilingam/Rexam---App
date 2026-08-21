@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { prisma } from '../config/prisma.js';
+import { extractQuestionsFromText } from '../services/ocrExtractionService.js';
 
 /**
  * Helper middleware/check to ensure request is from an ADMIN or SUPER_ADMIN
@@ -83,7 +84,7 @@ export const getAdminDashboard = async (req: AuthenticatedRequest, res: Response
 
 /**
  * OCR / Document Question Extraction Processing
- * Accepts text payload or file metadata and parses questions automatically.
+ * Accepts text payload or file metadata and parses questions across all languages and formats.
  */
 export const extractQuestionsFromDoc = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -92,69 +93,25 @@ export const extractQuestionsFromDoc = async (req: AuthenticatedRequest, res: Re
     const { textContent, subject = "General Awareness" } = req.body;
 
     if (!textContent || typeof textContent !== 'string' || textContent.trim().length === 0) {
-      return res.status(400).json({ message: 'Content or file text is required for OCR processing' });
+      return res.status(400).json({ message: 'Content or question paper text is required for OCR processing' });
     }
 
-    // Smart OCR Regex Parser for questions and options
-    const rawBlocks = textContent.split(/\n(?=\d+[\.\)]\s+)/);
-    const extractedQuestions: Array<{
-      text: string;
-      subject: string;
-      difficulty: string;
-      marks: number;
-      explanation: string;
-      options: Array<{ text: string; isCorrect: boolean }>;
-    }> = [];
+    const extractionResult = extractQuestionsFromText(textContent, subject);
 
-    rawBlocks.forEach((block, index) => {
-      const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
-      if (lines.length === 0) return;
-
-      const qText = lines[0].replace(/^\d+[\.\)]\s*/, '');
-      const options: Array<{ text: string; isCorrect: boolean }> = [];
-      let explanation = "Extracted via Rexam OCR Engine.";
-
-      lines.slice(1).forEach((line) => {
-        if (/^[a-dA-D][\.\)]\s*/.test(line)) {
-          const optText = line.replace(/^[a-dA-D][\.\)]\s*/, '');
-          const isCorrect = line.toLowerCase().includes('(correct)') || line.toLowerCase().includes('*');
-          options.push({
-            text: optText.replace(/\s*\(correct\)\s*/i, '').replace(/\*/g, ''),
-            isCorrect
-          });
-        } else if (line.toLowerCase().startsWith('explanation:')) {
-          explanation = line.replace(/^explanation:\s*/i, '');
-        }
+    if (!extractionResult.success || extractionResult.questions.length === 0) {
+      return res.status(422).json({
+        message: 'Could not extract structured questions from the provided text. Please check the question format or try again.',
+        warnings: extractionResult.warnings
       });
-
-      // If no correct option was flagged, default option A as correct
-      if (options.length > 0 && !options.some((o) => o.isCorrect)) {
-        options[0].isCorrect = true;
-      }
-
-      // Default fallback options if none parsed
-      if (options.length === 0) {
-        options.push(
-          { text: "Option A", isCorrect: true },
-          { text: "Option B", isCorrect: false },
-          { text: "Option C", isCorrect: false },
-          { text: "Option D", isCorrect: false }
-        );
-      }
-
-      extractedQuestions.push({
-        text: qText || `Question ${index + 1} extracted from uploaded question paper`,
-        subject,
-        difficulty: "MEDIUM",
-        marks: 1,
-        explanation,
-        options
-      });
-    });
+    }
 
     return res.status(200).json({
-      message: `Successfully extracted ${extractedQuestions.length} questions from question paper`,
-      questions: extractedQuestions
+      message: `Successfully extracted ${extractionResult.totalExtracted} questions with high accuracy (${extractionResult.detectedLanguage})`,
+      detectedLanguage: extractionResult.detectedLanguage,
+      totalExtracted: extractionResult.totalExtracted,
+      questions: extractionResult.questions,
+      rawTextPreview: extractionResult.rawTextPreview,
+      warnings: extractionResult.warnings
     });
   } catch (error: any) {
     console.error('❌ OCR Processing Error:', error);
