@@ -57,13 +57,13 @@ function AuthRedirect({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Helper component to handle /dashboard alias
-function DashboardRedirect() {
+// Role-aware redirect helpers
+function RoleBasedRedirect({ adminPath, studentPath }: { adminPath: string; studentPath: string }) {
   const { user } = useAuth()
   if (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") {
-    return <Navigate to="/admin" replace />
+    return <Navigate to={adminPath} replace />
   }
-  return <Navigate to="/student" replace />
+  return <Navigate to={studentPath} replace />
 }
 
 export function AppRoutes() {
@@ -93,28 +93,28 @@ export function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback/google" element={<GoogleCallbackPage />} />
 
-      {/* Top-Level Shortcut Redirect Aliases (Protected) */}
+      {/* Top-Level Role-Aware Shortcut Redirect Aliases */}
       <Route 
         path="/dashboard" 
         element={
           <ProtectedRoute>
-            <DashboardRedirect />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/results" 
-        element={
-          <ProtectedRoute allowedRoles={["STUDENT"]}>
-            <Navigate to="/student/results" replace />
+            <RoleBasedRedirect adminPath="/admin" studentPath="/student" />
           </ProtectedRoute>
         } 
       />
       <Route 
         path="/exams" 
         element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/exams" studentPath="/student/exams" />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/my-exams" 
+        element={
           <ProtectedRoute allowedRoles={["STUDENT"]}>
-            <Navigate to="/student/exams" replace />
+            <Navigate to="/student/my-exams" replace />
           </ProtectedRoute>
         } 
       />
@@ -123,6 +123,104 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["STUDENT"]}>
             <Navigate to="/student/practice" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/pyqs" 
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/pyqs" studentPath="/student/pyqs" />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/mock-tests" 
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/ai-mock-tests" studentPath="/student/mock-tests" />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/results" 
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/results" studentPath="/student/results" />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/analytics" 
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/analytics" studentPath="/student/analytics" />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/reports" 
+        element={
+          <ProtectedRoute allowedRoles={["STUDENT"]}>
+            <Navigate to="/student/reports" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute allowedRoles={["STUDENT"]}>
+            <Navigate to="/student/profile" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect adminPath="/admin/settings" studentPath="/student/settings" />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Admin Specific Shortcuts */}
+      <Route 
+        path="/questions" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]}>
+            <Navigate to="/admin/questions" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/question-papers" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]}>
+            <Navigate to="/admin/question-papers" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/students" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]}>
+            <Navigate to="/admin/students" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/attempts" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]}>
+            <Navigate to="/admin/attempts" replace />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/proctoring" 
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "SUPER_ADMIN"]}>
+            <Navigate to="/admin/proctoring" replace />
           </ProtectedRoute>
         } 
       />
