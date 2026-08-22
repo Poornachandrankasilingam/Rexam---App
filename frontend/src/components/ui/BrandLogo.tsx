@@ -20,7 +20,7 @@ export function BrandLogo({
     md: { img: "h-10 w-10", text: "text-xl", sub: "text-[10px]" },
     lg: { img: "h-14 w-14", text: "text-2xl", sub: "text-xs" },
     xl: { img: "h-20 w-20", text: "text-3xl", sub: "text-sm" },
-    hero3d: { img: "h-28 w-28 md:h-36 md:w-36", text: "text-4xl md:text-5xl", sub: "text-xs md:text-sm" }
+    hero3d: { img: "w-72 sm:w-96 md:w-[480px] max-w-full h-auto", text: "text-4xl md:text-5xl", sub: "text-xs md:text-sm" }
   }
 
   const currentSize = sizeMap[size]
@@ -28,12 +28,12 @@ export function BrandLogo({
   if (size === "hero3d") {
     return (
       <div className={`flex flex-col items-center justify-center text-center group perspective-1000 ${className}`}>
-        {/* 3D Floating Holographic Logo Container */}
+        {/* 3D Floating Holographic Brand Centerpiece */}
         <motion.div
           animate={{
-            y: [-6, 6, -6],
-            rotateX: [0, 4, 0, -4, 0],
-            rotateY: [-5, 5, -5]
+            y: [-5, 5, -5],
+            rotateX: [0, 2.5, 0, -2.5, 0],
+            rotateY: [-3.5, 3.5, -3.5]
           }}
           transition={{
             duration: 6,
@@ -43,35 +43,21 @@ export function BrandLogo({
           className="relative transform-gpu transition-transform duration-500 group-hover:scale-105"
         >
           {/* 3D Ambient Glowing Halos */}
-          <div className="absolute -inset-4 bg-gradient-to-tr from-emerald-600 via-teal-400 to-green-500 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition duration-500 animate-pulse" />
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-mint-400 rounded-3xl blur-md opacity-75" />
+          <div className="absolute -inset-4 bg-gradient-to-tr from-emerald-600 via-teal-400 to-green-500 rounded-3xl blur-2xl opacity-50 group-hover:opacity-100 transition duration-500 animate-pulse" />
+          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-mint-400 rounded-3xl blur-md opacity-60" />
 
-          {/* 3D Card Base with Logo */}
-          <div className="relative p-4 md:p-6 rounded-3xl bg-slate-950/85 border-2 border-emerald-400/50 shadow-[0_20px_50px_rgba(5,_150,_105,_0.5)] backdrop-blur-2xl flex items-center justify-center overflow-hidden">
-            {/* Specular Light Reflection Sweep */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+          {/* 3D Card Base with Full Brand Logo */}
+          <div className="relative p-5 sm:p-7 md:p-8 rounded-3xl bg-slate-950/85 border-2 border-emerald-400/50 shadow-[0_20px_50px_rgba(5,_150,_105,_0.45)] backdrop-blur-2xl flex items-center justify-center overflow-hidden">
+            {/* Specular Light Sweep Reflection */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
             <img
               src="/logo.png"
-              alt="Rexam AI Official Logo"
-              className={`${currentSize.img} object-contain rounded-2xl drop-shadow-[0_10px_20px_rgba(16,185,129,0.4)]`}
+              alt="REXAM-AI: Study Purpose | Intelligent Learning Platform"
+              className={`${currentSize.img} object-contain rounded-2xl drop-shadow-[0_10px_25px_rgba(16,185,129,0.35)]`}
             />
           </div>
         </motion.div>
-
-        {showText && (
-          <div className="mt-5 space-y-1">
-            <h2 className={`${currentSize.text} font-black tracking-tight font-outfit text-white flex items-center justify-center`}>
-              <span>REXAM</span>
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-green-300 bg-clip-text text-transparent ml-1">
-                -AI
-              </span>
-            </h2>
-            <p className={`${currentSize.sub} font-bold tracking-widest uppercase text-emerald-300/90 font-mono`}>
-              Study Purpose | Intelligent Learning Platform
-            </p>
-          </div>
-        )}
       </div>
     )
   }
