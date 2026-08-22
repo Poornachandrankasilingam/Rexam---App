@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
 @theme {
@@ -17,32 +17,32 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a2e1a;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   
-  --primary: #16a34a;
+  --primary: #10b981;
   --primary-foreground: #ffffff;
   
-  --secondary: #f0fdf4;
-  --secondary-foreground: #166534;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
   
-  --accent: #4ade80;
-  --accent-foreground: #0a2e1a;
+  --accent: #10b981;
+  --accent-foreground: #ffffff;
   
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   
-  --muted: #f0fdf4;
-  --muted-foreground: #166534;
+  --muted: #f1f5f9;
+  --muted-foreground: #334155;
   
   --card: #ffffff;
-  --card-foreground: #0a2e1a;
+  --card-foreground: #0f172a;
   
-  --border: rgba(22, 163, 74, 0.15);
-  --input: rgba(22, 163, 74, 0.15);
-  --ring: #16a34a;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #10b981;
   
-  --radius: 1.25rem;
+  --radius: 1rem;
 }
 
 * {
@@ -56,7 +56,7 @@ html {
 body {
   font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
   background: #ffffff;
-  color: #0a2e1a;
+  color: #0f172a;
   overflow-x: hidden;
 }
 
@@ -65,17 +65,79 @@ body {
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #f0fdf4;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #16a34a;
+  background: #10b981;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #15803d;
+  background: #059669;
 }
 
-/* 3D Animations & Keyframes from Figma Design */
+/* Universal Dashboard Contrast Rules */
+main {
+  color: #0f172a;
+}
+
+/* Clean White Card Glass Defaults for High Readability */
+.glass {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.glass-strong {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.glass-hover:hover {
+  border-color: #10b981 !important;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.1), 0 8px 10px -6px rgba(16, 185, 129, 0.1);
+}
+
+/* Ensure text inside dashboard elements is dark & readable */
+.bg-secondary\/30, .bg-secondary\/50, .bg-secondary {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0;
+  color: #0f172a !important;
+}
+
+/* High Contrast Headings and Labels */
+h1, h2, h3, h4, h5, h6 {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+/* Input Fields and Selects */
+input, select, textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Tables and Lists */
+table {
+  color: #0f172a !important;
+}
+th {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  background-color: #f1f5f9 !important;
+}
+td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* 3D Animations & Keyframes */
 @keyframes float {
   0%, 100% { transform: translateY(0px) rotateY(0deg); }
   33% { transform: translateY(-18px) rotateY(8deg); }
@@ -136,21 +198,6 @@ body {
   animation: shimmer 4s linear infinite;
 }
 
-.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(22, 163, 74, 0.15);
-}
-
-.glass-strong {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(22, 163, 74, 0.25);
-  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.1);
-}
-
 .card-3d {
   transform-style: preserve-3d;
   transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
@@ -158,7 +205,7 @@ body {
 
 .card-3d:hover {
   transform: perspective(800px) rotateX(-4deg) rotateY(4deg) translateZ(8px);
-  box-shadow: 0 20px 40px -10px rgba(22, 163, 74, 0.2);
+  box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.2);
 }
 
 .green-glow {
@@ -166,22 +213,22 @@ body {
 }
 
 .btn-primary, .btn-3d-green, .btn-3d-blue {
-  background: linear-gradient(135deg, #15803d 0%, #16a34a 50%, #15803d 100%);
+  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #059669 100%) !important;
   background-size: 200% auto;
-  color: #ffffff;
+  color: #ffffff !important;
   transition: background-position 0.4s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .btn-primary:hover, .btn-3d-green:hover, .btn-3d-blue:hover {
   background-position: right center;
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(22, 163, 74, 0.35);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
 }
 
 .mesh-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(22, 163, 74, 0.18) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 40% at 80% 50%, rgba(74, 222, 128, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse 30% 50% at 10% 70%, rgba(220, 252, 231, 0.8) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(16, 185, 129, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 80% 50%, rgba(52, 211, 153, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 30% 50% at 10% 70%, rgba(209, 250, 229, 0.6) 0%, transparent 50%),
     #ffffff;
 }
 
@@ -189,7 +236,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(22, 163, 74, 0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -201,12 +248,12 @@ body {
 .logo-3d-inner {
   transform-style: preserve-3d;
   animation: float 7s ease-in-out infinite;
-  filter: drop-shadow(0 30px 60px rgba(74, 222, 128, 0.35)) drop-shadow(0 0 120px rgba(22, 163, 74, 0.2));
+  filter: drop-shadow(0 30px 60px rgba(16, 185, 129, 0.3)) drop-shadow(0 0 120px rgba(16, 185, 129, 0.15));
 }
 
 .orbit-ring {
   position: absolute;
-  border: 1px solid rgba(74, 222, 128, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: 50%;
   top: 50%;
   left: 50%;
@@ -218,25 +265,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.feature-icon-wrap {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.18), rgba(74, 222, 128, 0.08));
-  border: 1px solid rgba(74, 222, 128, 0.25);
-}
-
 .nav-blur {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(22, 163, 74, 0.15);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .particle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(22, 163, 74, 0.35);
+  background: rgba(16, 185, 129, 0.35);
   animation: particle-drift linear infinite;
 }
 
 .step-connector {
-  background: linear-gradient(to right, rgba(74, 222, 128, 0.4), rgba(74, 222, 128, 0.1));
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.4), rgba(16, 185, 129, 0.1));
 }
