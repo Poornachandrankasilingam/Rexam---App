@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
@@ -25,47 +26,56 @@ import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'http://localhost:3000',
-  'https://rexam-app.vercel.app'
-].filter(Boolean) as string[];
-
+// Enable CORS for local dev and all production deployment URLs
 app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
-    },
-    credentials: true,
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
-app.use(express.json());
+
+// Increase JSON and URL-encoded payload limit for OCR papers and large test papers
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
-// Routes
+// Routes (Mounted with /api prefix as well as root prefix for serverless compatibility)
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/student', studentRoutes);
+app.use('/student', studentRoutes);
+
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 
-// Health check and root API endpoint
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'Rexam Backend'
-    });
+// Health check and root API endpoints
+app.get(['/health', '/api/health'], (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Rexam Backend',
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'Rexam Backend'
-    });
+app.get(['/', '/api'], (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'Rexam API v1',
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.get('/api', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'Rexam API v1' });
+// Global Error Handler Middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('❌ Server Error:', err);
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'Payload too large. Please upload files under 50MB.' });
+  }
+  return res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err : undefined
+  });
 });
 
 export default app;
