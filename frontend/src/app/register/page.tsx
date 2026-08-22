@@ -86,20 +86,20 @@ export default function RegisterPage() {
       >
         <div className="glass p-8 md:p-10 rounded-3xl border border-white/10 shadow-2xl space-y-6">
           <div className="text-center space-y-3">
-            <Link to="/" className="inline-block group">
-              <div className="relative inline-block">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-2xl blur opacity-40 group-hover:opacity-100 transition duration-300"></div>
-                <img
-                  src="/logo.jpg"
-                  alt="Rexam Logo"
-                  width={56}
-                  height={56}
-                  className="relative h-14 w-14 rounded-2xl object-cover border border-white/20 shadow-xl mx-auto"
-                />
+            <Link to="/" className="inline-block group mb-2">
+              <div className="relative inline-block transform-gpu transition-transform duration-300 group-hover:scale-105">
+                <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 via-cyan-400 to-teal-400 rounded-3xl blur-md opacity-60 group-hover:opacity-100 transition duration-300"></div>
+                <div className="relative p-2 rounded-2xl bg-slate-950/90 border border-cyan-400/50 shadow-2xl">
+                  <img
+                    src="/logo.png"
+                    alt="Rexam AI Logo"
+                    className="h-16 w-16 object-contain rounded-xl drop-shadow-[0_4px_10px_rgba(0,180,255,0.3)]"
+                  />
+                </div>
               </div>
             </Link>
             <h1 className="text-3xl font-extrabold font-outfit text-white">Create Account</h1>
-            <p className="text-sm text-slate-400">Join Rexam to start practicing mock exams and PYQs</p>
+            <p className="text-xs text-cyan-300/80 font-bold uppercase tracking-widest font-mono">Study Purpose | Intelligent Learning</p>
           </div>
 
           {/* Google One-Click Sign Up */}

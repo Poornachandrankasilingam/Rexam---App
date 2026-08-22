@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
+import { BrandLogo } from "@/components/ui/BrandLogo"
 
 export function Sidebar() {
   const location = useLocation()
@@ -60,34 +61,22 @@ export function Sidebar() {
   const links = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? adminLinks : studentLinks
 
   return (
-    <div className="w-64 border-r border-blue-500/20 glass flex flex-col h-screen fixed left-0 top-0 z-40">
-      {/* Brand Header */}
-      <div className="p-5 border-b border-white/10">
-        <Link to="/" className="flex items-center space-x-3 group">
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-sky-400 rounded-xl blur opacity-50 group-hover:opacity-100 transition duration-300"></div>
-            <img 
-              src="/logo.jpg" 
-              alt="Rexam Logo" 
-              width={36} 
-              height={36} 
-              className="relative h-9 w-9 rounded-xl object-cover border border-white/30 shadow-md" 
-            />
-          </div>
-          <span className="text-xl font-extrabold tracking-tight font-outfit text-white">
-            REXAM<span className="text-blue-400">.AI</span>
-          </span>
+    <div className="w-64 border-r border-cyan-500/20 glass flex flex-col h-screen fixed left-0 top-0 z-40">
+      {/* 3D Brand Header */}
+      <div className="p-4 border-b border-white/10">
+        <Link to="/">
+          <BrandLogo size="md" />
         </Link>
       </div>
 
       {/* User Badge */}
-      <div className="px-5 py-3 border-b border-white/5 bg-blue-950/20">
+      <div className="px-5 py-3 border-b border-white/5 bg-cyan-950/20">
         <div className="flex items-center justify-between">
           <div className="overflow-hidden">
             <p className="text-xs font-bold text-white truncate">{user?.name || "Aspirant"}</p>
-            <p className="text-[10px] font-semibold text-blue-300 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
+            <p className="text-[10px] font-semibold text-cyan-300 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
           </div>
-          <span className="h-2.5 w-2.5 rounded-full bg-blue-400 animate-pulse shadow-lg shadow-blue-400/50 flex-shrink-0" />
+          <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-400/50 flex-shrink-0" />
         </div>
       </div>
 
@@ -103,26 +92,31 @@ export function Sidebar() {
               className={cn(
                 "flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 group relative",
                 isActive 
-                  ? "btn-3d-blue text-white shadow-md shadow-blue-500/30 border border-blue-400/40" 
-                  : "text-slate-300 hover:bg-blue-500/10 hover:text-white"
+                  ? "btn-3d-blue text-white shadow-md shadow-cyan-500/30 border border-cyan-400/40" 
+                  : "text-slate-300 hover:bg-cyan-500/10 hover:text-white"
               )}
             >
               {LinkIcon && (
-                <LinkIcon className={cn("h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400 group-hover:text-blue-400")} />
+                <LinkIcon 
+                  className={cn(
+                    "h-4 w-4 transition-transform group-hover:scale-110",
+                    isActive ? "text-white" : "text-cyan-400"
+                  )} 
+                />
               )}
-              <span className="font-semibold truncate">{link.name}</span>
+              <span className="truncate">{link.name}</span>
             </Link>
           )
         })}
       </nav>
 
-      {/* Logout Footer */}
-      <div className="p-3 border-t border-white/10">
+      {/* Footer Logout */}
+      <div className="p-3 border-t border-white/10 bg-slate-950/40">
         <button
           onClick={logout}
-          className="flex items-center space-x-3 px-3.5 py-2.5 w-full rounded-xl text-xs font-bold text-slate-300 hover:bg-rose-500/10 hover:text-rose-400 border border-transparent hover:border-rose-500/20 transition-all duration-200"
+          className="flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all group"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           <span>Sign Out</span>
         </button>
       </div>
