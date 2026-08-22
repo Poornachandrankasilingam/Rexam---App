@@ -1,30 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #060b19;
+  --background: #04130d;
   --foreground: #ffffff;
   
-  --primary: #3b82f6;
+  --primary: #10b981;
   --primary-foreground: #ffffff;
   
-  --secondary: #0f172a;
-  --secondary-foreground: #e2e8f0;
+  --secondary: #0a261b;
+  --secondary-foreground: #ecfdf5;
   
-  --accent: #38bdf8;
+  --accent: #34d399;
   --accent-foreground: #ffffff;
   
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   
-  --muted: #0b1329;
+  --muted: #061c14;
   --muted-foreground: #94a3b8;
   
-  --card: #0a1128;
+  --card: #082117;
   --card-foreground: #ffffff;
   
-  --border: rgba(255, 255, 255, 0.12);
+  --border: rgba(52, 211, 153, 0.18);
   --input: rgba(255, 255, 255, 0.15);
-  --ring: #3b82f6;
+  --ring: #10b981;
   
   --radius: 1.25rem;
 }
@@ -64,16 +64,16 @@ body {
   overflow-x: hidden;
 }
 
-/* 3D Blue & Crisp White Glassmorphism Card System */
+/* 3D Emerald Green & Crisp White Glassmorphism Card System */
 .glass {
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.85) 0%, rgba(10, 17, 40, 0.95) 100%);
+  background: linear-gradient(145deg, rgba(8, 33, 23, 0.88) 0%, rgba(4, 19, 13, 0.96) 100%);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.2);
   box-shadow: 
-    0 20px 40px -15px rgba(2, 6, 23, 0.8),
-    0 0 0 1px rgba(59, 130, 246, 0.15),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+    0 20px 40px -15px rgba(2, 20, 14, 0.8),
+    0 0 0 1px rgba(16, 185, 129, 0.15),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
   transform-style: preserve-3d;
 }
 
@@ -82,66 +82,66 @@ body {
 }
 
 .glass-hover:hover {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.98) 100%);
-  border-color: rgba(96, 165, 250, 0.4);
+  background: linear-gradient(145deg, rgba(13, 49, 35, 0.92) 0%, rgba(6, 26, 18, 0.98) 100%);
+  border-color: rgba(52, 211, 153, 0.45);
   box-shadow: 
-    0 30px 60px -12px rgba(37, 99, 235, 0.35),
-    0 0 25px rgba(59, 130, 246, 0.25),
+    0 30px 60px -12px rgba(5, 150, 105, 0.35),
+    0 0 25px rgba(16, 185, 129, 0.25),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
   transform: translateY(-4px) scale(1.01);
 }
 
-/* 3D Blue Interactive Button */
-.btn-3d-blue {
-  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+/* 3D Emerald & Mint Interactive Button */
+.btn-3d-blue, .btn-3d-green {
+  background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 
-    0 10px 25px -5px rgba(37, 99, 235, 0.5),
-    0 4px 0 0 #1e40af,
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.4);
+    0 10px 25px -5px rgba(5, 150, 105, 0.5),
+    0 4px 0 0 #064e3b,
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
   transition: all 0.2s ease;
 }
 
-.btn-3d-blue:hover {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+.btn-3d-blue:hover, .btn-3d-green:hover {
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
   box-shadow: 
-    0 14px 30px -5px rgba(59, 130, 246, 0.6),
-    0 4px 0 0 #1e3a8a,
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+    0 14px 30px -5px rgba(16, 185, 129, 0.6),
+    0 4px 0 0 #065f46,
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.55);
   transform: translateY(-2px);
 }
 
-.btn-3d-blue:active {
+.btn-3d-blue:active, .btn-3d-green:active {
   transform: translateY(2px);
   box-shadow: 
-    0 5px 15px -3px rgba(37, 99, 235, 0.4),
-    0 1px 0 0 #1e3a8a;
+    0 5px 15px -3px rgba(5, 150, 105, 0.4),
+    0 1px 0 0 #064e3b;
 }
 
-/* Radiant 3D Blue & White Text */
+/* Radiant Emerald & Pure White Text */
 .gradient-text {
-  background: linear-gradient(135deg, #ffffff 0%, #bfdbfe 40%, #3b82f6 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #d1fae5 35%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.3));
+  filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.35));
 }
 
 .gradient-text-emerald {
-  background: linear-gradient(135deg, #ffffff 0%, #bae6fd 50%, #38bdf8 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 50%, #34d399 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.3));
+  filter: drop-shadow(0 4px 12px rgba(52, 211, 153, 0.35));
 }
 
 .gradient-border {
   position: relative;
   border-radius: var(--radius);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(255, 255, 255, 0.2));
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.5), rgba(255, 255, 255, 0.25));
   padding: 1px;
 }
 
 .animate-glow {
-  box-shadow: 0 0 45px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 45px rgba(16, 185, 129, 0.35);
 }
 
 /* Floating 3D Depth Keyframes */
@@ -158,21 +158,21 @@ body {
   animation: float3d 6s ease-in-out infinite;
 }
 
-/* Custom Sleek Scrollbar */
+/* Custom Sleek Emerald Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #060b19;
+  background: #04130d;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(52, 211, 153, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.6);
+  background: rgba(16, 185, 129, 0.6);
 }

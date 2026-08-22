@@ -61,7 +61,7 @@ export function Sidebar() {
   const links = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? adminLinks : studentLinks
 
   return (
-    <div className="w-64 border-r border-cyan-500/20 glass flex flex-col h-screen fixed left-0 top-0 z-40">
+    <div className="w-64 border-r border-emerald-500/20 glass flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* 3D Brand Header */}
       <div className="p-4 border-b border-white/10">
         <Link to="/">
@@ -70,13 +70,13 @@ export function Sidebar() {
       </div>
 
       {/* User Badge */}
-      <div className="px-5 py-3 border-b border-white/5 bg-cyan-950/20">
+      <div className="px-5 py-3 border-b border-white/5 bg-emerald-950/25">
         <div className="flex items-center justify-between">
           <div className="overflow-hidden">
             <p className="text-xs font-bold text-white truncate">{user?.name || "Aspirant"}</p>
-            <p className="text-[10px] font-semibold text-cyan-300 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
+            <p className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
           </div>
-          <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-400/50 flex-shrink-0" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50 flex-shrink-0" />
         </div>
       </div>
 
@@ -92,15 +92,15 @@ export function Sidebar() {
               className={cn(
                 "flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 group relative",
                 isActive 
-                  ? "btn-3d-blue text-white shadow-md shadow-cyan-500/30 border border-cyan-400/40" 
-                  : "text-slate-300 hover:bg-cyan-500/10 hover:text-white"
+                  ? "btn-3d-green text-white shadow-md shadow-emerald-500/30 border border-emerald-400/40" 
+                  : "text-slate-300 hover:bg-emerald-500/10 hover:text-white"
               )}
             >
               {LinkIcon && (
                 <LinkIcon 
                   className={cn(
                     "h-4 w-4 transition-transform group-hover:scale-110",
-                    isActive ? "text-white" : "text-cyan-400"
+                    isActive ? "text-white" : "text-emerald-400"
                   )} 
                 />
               )}

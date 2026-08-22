@@ -16,7 +16,7 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-cyan-500/20 backdrop-blur-2xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-emerald-500/20 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* 3D Logo Brand */}
@@ -31,7 +31,7 @@ export function Navbar() {
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-sm font-semibold text-slate-200 hover:text-cyan-400 transition-colors"
+                  className="text-sm font-semibold text-slate-200 hover:text-emerald-400 transition-colors"
                 >
                   {link.name}
                 </Link>
@@ -40,13 +40,13 @@ export function Navbar() {
 
             <div className="flex items-center space-x-3 border-l border-white/10 pl-6">
               <Link to="/login">
-                <Button variant="ghost" size="sm" className="rounded-full px-5 text-sm font-semibold text-slate-200 hover:text-white hover:bg-cyan-500/10">
+                <Button variant="ghost" size="sm" className="rounded-full px-5 text-sm font-semibold text-slate-200 hover:text-white hover:bg-emerald-500/10">
                   Sign In
                 </Button>
               </Link>
 
               <Link to="/register">
-                <Button size="sm" className="btn-3d-blue rounded-full px-6 text-sm font-bold text-white shadow-lg shadow-cyan-500/20">
+                <Button size="sm" className="btn-3d-green rounded-full px-6 text-sm font-bold text-white shadow-lg shadow-emerald-500/20">
                   <span>Get Started</span>
                   <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
@@ -68,13 +68,13 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden glass border-b border-cyan-500/20 px-4 pt-4 pb-6 space-y-4">
+        <div className="md:hidden glass border-b border-emerald-500/20 px-4 pt-4 pb-6 space-y-4">
           <div className="space-y-2">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
-                className="block px-4 py-3 rounded-xl text-base font-semibold text-slate-200 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all"
+                className="block px-4 py-3 rounded-xl text-base font-semibold text-slate-200 hover:bg-emerald-500/10 hover:text-emerald-400 transition-all"
                 onClick={() => setIsOpen(false)}
               >
                 {link.name}
@@ -89,7 +89,7 @@ export function Navbar() {
               </Button>
             </Link>
             <Link to="/register" className="block w-full" onClick={() => setIsOpen(false)}>
-              <Button className="btn-3d-blue w-full rounded-xl py-3 font-bold text-white">
+              <Button className="btn-3d-green w-full rounded-xl py-3 font-bold text-white">
                 Get Started Free
               </Button>
             </Link>
