@@ -47,14 +47,14 @@ export function BrandLogo({
           <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-mint-400 rounded-3xl blur-md opacity-60" />
 
           {/* 3D Card Base with Full Brand Logo */}
-          <div className="relative p-5 sm:p-7 md:p-8 rounded-3xl bg-slate-950/85 border-2 border-emerald-400/50 shadow-[0_20px_50px_rgba(5,_150,_105,_0.45)] backdrop-blur-2xl flex items-center justify-center overflow-hidden">
+          <div className="relative p-5 sm:p-7 md:p-8 rounded-3xl bg-white/95 border-2 border-emerald-400/50 shadow-[0_20px_50px_rgba(5,_150,_105,_0.25)] backdrop-blur-2xl flex items-center justify-center overflow-hidden">
             {/* Specular Light Sweep Reflection */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
             <img
               src="/logo.png"
               alt="REXAM-AI: Study Purpose | Intelligent Learning Platform"
-              className={`${currentSize.img} object-contain rounded-2xl drop-shadow-[0_10px_25px_rgba(16,185,129,0.35)]`}
+              className={`${currentSize.img} object-contain rounded-2xl drop-shadow-[0_10px_25px_rgba(16,185,129,0.25)]`}
             />
           </div>
         </motion.div>
@@ -66,8 +66,8 @@ export function BrandLogo({
     <div className={`flex items-center space-x-3 group ${className}`}>
       {/* 3D Interactive Emblem */}
       <div className="relative flex-shrink-0">
-        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl blur opacity-50 group-hover:opacity-100 transition duration-300" />
-        <div className={`relative ${currentSize.img} rounded-2xl p-0.5 bg-slate-950/90 border border-emerald-400/40 shadow-lg shadow-emerald-500/20 flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover:scale-105`}>
+        <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-400 rounded-2xl blur opacity-30 group-hover:opacity-70 transition duration-300" />
+        <div className={`relative ${currentSize.img} rounded-2xl p-0.5 bg-white border border-emerald-300 shadow-sm flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover:scale-105`}>
           <img
             src="/logo.png"
             alt="Rexam AI"
@@ -77,11 +77,11 @@ export function BrandLogo({
       </div>
 
       {showText && (
-        <div className="flex flex-col">
-          <span className={`${currentSize.text} font-extrabold tracking-tight font-outfit text-white leading-none flex items-center`}>
-            REXAM<span className="text-emerald-400">.AI</span>
+        <div className="flex flex-col text-left">
+          <span className={`${currentSize.text} font-black tracking-tight font-outfit text-slate-900 leading-none flex items-center`}>
+            REXAM<span className="text-emerald-600">.AI</span>
           </span>
-          <span className="text-[9px] font-bold text-emerald-300/80 tracking-wider uppercase font-mono mt-0.5">
+          <span className="text-[9px] font-extrabold text-emerald-700 tracking-wider uppercase font-mono mt-0.5">
             Intelligent Platform
           </span>
         </div>

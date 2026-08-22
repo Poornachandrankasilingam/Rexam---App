@@ -61,27 +61,27 @@ export function Sidebar() {
   const links = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN" ? adminLinks : studentLinks
 
   return (
-    <div className="w-64 border-r border-emerald-500/20 glass flex flex-col h-screen fixed left-0 top-0 z-40">
-      {/* 3D Brand Header */}
-      <div className="p-4 border-b border-white/10">
+    <div className="w-64 border-r border-slate-200 bg-white flex flex-col h-screen fixed left-0 top-0 z-40 shadow-sm">
+      {/* Brand Header */}
+      <div className="p-4 border-b border-slate-100 bg-white">
         <Link to="/">
           <BrandLogo size="md" />
         </Link>
       </div>
 
       {/* User Badge */}
-      <div className="px-5 py-3 border-b border-white/5 bg-emerald-950/25">
+      <div className="px-5 py-3 border-b border-slate-100 bg-emerald-50/70">
         <div className="flex items-center justify-between">
           <div className="overflow-hidden">
-            <p className="text-xs font-bold text-white truncate">{user?.name || "Aspirant"}</p>
-            <p className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
+            <p className="text-xs font-black text-slate-900 truncate">{user?.name || "Aspirant"}</p>
+            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mt-0.5">{user?.role || "STUDENT"}</p>
           </div>
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50 flex-shrink-0" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-sm flex-shrink-0" />
         </div>
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto custom-scrollbar bg-white">
         {links.map((link) => {
           const isActive = pathname === link.href
           const LinkIcon = link.icon
@@ -90,17 +90,17 @@ export function Sidebar() {
               key={link.name}
               to={link.href}
               className={cn(
-                "flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 group relative",
+                "flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group relative",
                 isActive 
-                  ? "btn-3d-green text-white shadow-md shadow-emerald-500/30 border border-emerald-400/40" 
-                  : "text-slate-300 hover:bg-emerald-500/10 hover:text-white"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border border-emerald-500 font-black" 
+                  : "text-slate-800 hover:bg-emerald-50 hover:text-emerald-800 font-bold"
               )}
             >
               {LinkIcon && (
                 <LinkIcon 
                   className={cn(
-                    "h-4 w-4 transition-transform group-hover:scale-110",
-                    isActive ? "text-white" : "text-emerald-400"
+                    "h-4 w-4 transition-transform group-hover:scale-110 flex-shrink-0",
+                    isActive ? "text-white" : "text-emerald-600"
                   )} 
                 />
               )}
@@ -111,10 +111,10 @@ export function Sidebar() {
       </nav>
 
       {/* Footer Logout */}
-      <div className="p-3 border-t border-white/10 bg-slate-950/40">
+      <div className="p-3 border-t border-slate-100 bg-slate-50/60">
         <button
           onClick={logout}
-          className="flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all group"
+          className="flex items-center space-x-3 w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-all group"
         >
           <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           <span>Sign Out</span>
