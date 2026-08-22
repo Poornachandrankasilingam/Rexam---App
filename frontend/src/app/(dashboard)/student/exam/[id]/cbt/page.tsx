@@ -1,39 +1,43 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { 
-  Camera, 
-  CheckCircle2, 
   Clock, 
-  AlertTriangle, 
   ShieldAlert, 
-  ArrowLeft, 
-  ArrowRight, 
+  Send, 
+  ChevronLeft, 
+  ChevronRight, 
   Bookmark, 
   RotateCcw, 
-  Send,
-  Eye,
-  Maximize2
+  CheckCircle2, 
+  ArrowRight,
+  Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
+
+type QuestionOption = {
+  id: string
+  text: string
+  isCorrect?: boolean
+}
 
 type QuestionItem = {
   id: string
   text: string
   subject: string
+  topic?: string
   difficulty: string
   marks: number
   negativeMarks: number
-  explanation: string
-  options: Array<{ id: string; text: string }>
+  explanation?: string
+  options: QuestionOption[]
 }
 
 type ExamPayload = {
   id: string
   title: string
-  description: string
   code: string
   duration: number
   totalMarks: number
@@ -44,18 +48,11 @@ export default function CBTExamEnginePage() {
   const { id: examId } = useParams()
   const navigate = useNavigate()
 
-  // Pre-exam flow step: 1: Instructions, 2: Camera, 3: Face Verification, 4: CBT Live
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  // Pre-exam flow step: 1: Instructions, 2: CBT Live
+  const [step, setStep] = useState<1 | 2>(1)
 
   const [exam, setExam] = useState<ExamPayload | null>(null)
   const [loading, setLoading] = useState(true)
-
-  // Camera & Proctoring state
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [cameraGranted, setCameraGranted] = useState(false)
-  const [faceVerified, setFaceVerified] = useState(false)
-  const [riskScore, setRiskScore] = useState(0)
-  const [proctorWarning, setProctorWarning] = useState<string | null>(null)
 
   // CBT State
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -94,32 +91,9 @@ export default function CBTExamEnginePage() {
     initExam()
   }, [examId])
 
-  // 2. Camera Request
-  const requestCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      setCameraGranted(true)
-      setStep(3)
-    } catch (err) {
-      console.warn("Camera access denied or unequipped", err)
-      // Allow proceeding with simulated proctoring mode
-      setCameraGranted(true)
-      setStep(3)
-    }
-  }
-
-  // 3. Face Verification Step
-  const verifyFace = () => {
-    setFaceVerified(true)
-    setStep(4)
-  }
-
-  // 4. Countdown Timer & Auto-Save
+  // 2. Countdown Timer & Auto-Save
   useEffect(() => {
-    if (step !== 4 || timeLeftSec <= 0) return
+    if (step !== 2 || timeLeftSec <= 0) return
 
     const timer = setInterval(() => {
       setTimeLeftSec((prev) => {
@@ -137,7 +111,7 @@ export default function CBTExamEnginePage() {
 
   // Auto-save every 15 seconds to server
   useEffect(() => {
-    if (step !== 4 || !examId) return
+    if (step !== 2 || !examId) return
 
     const autoSaveTimer = setInterval(async () => {
       try {
@@ -152,33 +126,6 @@ export default function CBTExamEnginePage() {
 
     return () => clearInterval(autoSaveTimer)
   }, [step, examId, answers, timeLeftSec])
-
-  // 5. AI Proctoring Tab & Focus Listener
-  useEffect(() => {
-    if (step !== 4) return
-
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        const warning = "Tab switch detected! Malpractice event recorded."
-        setProctorWarning(warning)
-        setRiskScore((prev) => prev + 15)
-
-        try {
-          await api.post("/student/proctoring/log", {
-            examId,
-            eventType: "TAB_SWITCH",
-            riskScore: 15,
-            details: "User navigated away from active CBT exam tab."
-          })
-        } catch (e) {
-          console.error("Failed to log proctoring event", e)
-        }
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-  }, [step, examId])
 
   // Option select handler
   const handleSelectOption = (questionId: string, optionId: string) => {
@@ -221,7 +168,7 @@ export default function CBTExamEnginePage() {
     try {
       setSubmitting(true)
       const timeSpentSec = (exam?.duration || 30) * 60 - timeLeftSec
-      const res = await api.post(`/student/exams/${examId}/submit`, {
+      await api.post(`/student/exams/${examId}/submit`, {
         answers,
         timeSpentSec
       })
@@ -248,15 +195,19 @@ export default function CBTExamEnginePage() {
   }
 
   const currentQ = exam.questions[currentIndex] || exam.questions[0]
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  const answeredCount = Object.keys(answers).length
+  const markedCount = Object.values(markedForReview).filter(Boolean).length
+  const unansweredCount = exam.questions.length - answeredCount
+
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
-    <div className="space-y-6 pb-12 min-h-[85vh] flex flex-col justify-between">
-      {/* STEP 1: EXAM INSTRUCTIONS */}
+    <div className="min-h-screen bg-[#080c14] text-slate-100 flex flex-col p-4 md:p-8 select-none">
+      {/* STEP 1: INSTRUCTIONS */}
       {step === 1 && (
         <div className="glass p-8 rounded-3xl border border-white/10 space-y-6 max-w-3xl mx-auto my-auto w-full">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -276,63 +227,23 @@ export default function CBTExamEnginePage() {
             <h3 className="font-bold text-white text-sm">CBT Instructions & Guidelines:</h3>
             <ul className="list-disc pl-5 space-y-1.5 leading-relaxed">
               <li>Ensure a stable internet connection. Progress is auto-saved continuously.</li>
-              <li>Camera permission is required for live AI face monitoring and malpractice tracking.</li>
-              <li>Do NOT switch tabs or minimize the browser during the exam.</li>
+              <li>Questions can be navigated freely using the question palette on the right.</li>
+              <li>You can mark questions for review and return to them anytime before final submission.</li>
               <li>Question status: Answered (Green), Unanswered (Gray), Marked for Review (Purple).</li>
             </ul>
           </div>
 
           <div className="pt-4 flex justify-end">
             <Button size="lg" onClick={() => setStep(2)} className="rounded-2xl px-8 font-bold bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/25">
-              Proceed to Camera Check
+              Start CBT Exam Now
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: CAMERA PERMISSION */}
+      {/* STEP 2: CBT EXAM ENGINE INTERFACE */}
       {step === 2 && (
-        <div className="glass p-8 rounded-3xl border border-white/10 space-y-6 max-w-xl mx-auto my-auto text-center w-full">
-          <div className="h-16 w-16 mx-auto rounded-3xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
-            <Camera className="h-8 w-8" />
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white font-outfit">AI Proctoring Camera Verification</h2>
-            <p className="text-xs text-slate-300">
-              Please grant camera access to enable real-time face tracking during the test.
-            </p>
-          </div>
-
-          <div className="pt-2">
-            <Button size="lg" onClick={requestCamera} className="rounded-2xl px-8 font-bold bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/25">
-              Grant Camera Permission
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3: FACE VERIFICATION */}
-      {step === 3 && (
-        <div className="glass p-8 rounded-3xl border border-white/10 space-y-6 max-w-xl mx-auto my-auto text-center w-full">
-          <h2 className="text-xl font-bold text-white font-outfit">Face Alignment Preview</h2>
-          <p className="text-xs text-slate-300">Position your face in the center of the camera frame.</p>
-
-          <div className="relative w-64 h-48 mx-auto rounded-2xl overflow-hidden border-2 border-blue-500/40 bg-black flex items-center justify-center">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-            <div className="absolute inset-4 border border-dashed border-blue-400/60 rounded-xl pointer-events-none" />
-          </div>
-
-          <Button size="lg" onClick={verifyFace} className="rounded-2xl px-8 font-bold bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25">
-            <CheckCircle2 className="h-5 w-5 mr-2" />
-            Confirm & Start Exam
-          </Button>
-        </div>
-      )}
-
-      {/* STEP 4: CBT EXAM ENGINE INTERFACE */}
-      {step === 4 && (
         <div className="space-y-6">
           {/* Header Bar */}
           <div className="glass px-6 py-4 rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
@@ -341,13 +252,7 @@ export default function CBTExamEnginePage() {
               <p className="text-xs text-slate-400 font-mono">Code: {exam.code}</p>
             </div>
 
-            {/* Floating Proctor PIP Video */}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-xs font-bold text-blue-300">
-                <Eye className="h-4 w-4 text-blue-400 animate-pulse" />
-                <span>AI Proctor Active</span>
-              </div>
-
               {/* Countdown Timer */}
               <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-mono text-base font-extrabold">
                 <Clock className="h-4 w-4" />
@@ -364,17 +269,6 @@ export default function CBTExamEnginePage() {
               </Button>
             </div>
           </div>
-
-          {/* Warning Banner */}
-          {proctorWarning && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <ShieldAlert className="h-4 w-4 text-rose-400" />
-                <span>{proctorWarning}</span>
-              </div>
-              <button onClick={() => setProctorWarning(null)} className="text-xs underline">Dismiss</button>
-            </div>
-          )}
 
           {/* Main Exam Grid: Question Area + Palette */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -450,60 +344,61 @@ export default function CBTExamEnginePage() {
                     size="sm"
                     className="rounded-xl text-xs font-bold"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                    <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
                   </Button>
 
                   <Button
-                    disabled={currentIndex === exam.questions.length - 1}
                     onClick={handleNext}
+                    disabled={currentIndex === exam.questions.length - 1}
                     size="sm"
                     className="rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500"
                   >
                     Next
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               </div>
             </div>
 
-            {/* Right Question Palette Sidebar */}
+            {/* Right Question Palette */}
             <div className="glass p-6 rounded-3xl border border-white/10 space-y-6 flex flex-col justify-between">
               <div className="space-y-4">
-                <h3 className="text-sm font-bold font-outfit text-white">Question Palette</h3>
+                <h3 className="text-sm font-bold text-white font-outfit border-b border-white/10 pb-3">
+                  Question Palette
+                </h3>
 
-                {/* Legend */}
-                <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-300">
+                {/* Status legend */}
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 font-semibold">
                   <div className="flex items-center space-x-1.5">
-                    <span className="h-3 w-3 rounded bg-emerald-500" />
-                    <span>Answered</span>
+                    <div className="h-3 w-3 rounded-md bg-emerald-500/30 border border-emerald-500" />
+                    <span>Answered ({answeredCount})</span>
                   </div>
                   <div className="flex items-center space-x-1.5">
-                    <span className="h-3 w-3 rounded bg-purple-500" />
-                    <span>Review</span>
+                    <div className="h-3 w-3 rounded-md bg-secondary/50 border border-white/10" />
+                    <span>Unanswered ({unansweredCount})</span>
                   </div>
                   <div className="flex items-center space-x-1.5">
-                    <span className="h-3 w-3 rounded bg-slate-600" />
-                    <span>Visited</span>
+                    <div className="h-3 w-3 rounded-md bg-purple-500/30 border border-purple-500" />
+                    <span>Review ({markedCount})</span>
                   </div>
                   <div className="flex items-center space-x-1.5">
-                    <span className="h-3 w-3 rounded border border-slate-600 bg-secondary" />
-                    <span>Not Visited</span>
+                    <div className="h-3 w-3 rounded-md border border-blue-400" />
+                    <span>Current</span>
                   </div>
                 </div>
 
-                {/* Palette Grid */}
-                <div className="grid grid-cols-5 gap-2 pt-2 max-h-64 overflow-y-auto custom-scrollbar">
+                {/* Palette numbers */}
+                <div className="grid grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-1">
                   {exam.questions.map((q, idx) => {
-                    const isAns = Boolean(answers[q.id])
-                    const isRev = Boolean(markedForReview[q.id])
-                    const isCurr = idx === currentIndex
-                    const isVis = Boolean(visited[idx])
+                    const isCurrent = idx === currentIndex
+                    const isAnswered = Boolean(answers[q.id])
+                    const isReview = Boolean(markedForReview[q.id])
 
-                    let bgClass = "bg-secondary text-slate-400 border-slate-700"
-                    if (isAns) bgClass = "bg-emerald-600 text-white border-emerald-400"
-                    else if (isRev) bgClass = "bg-purple-600 text-white border-purple-400"
-                    else if (isVis) bgClass = "bg-slate-700 text-white border-slate-500"
+                    let bgClass = "bg-secondary/40 border-white/10 text-slate-400"
+                    if (isAnswered) bgClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold"
+                    if (isReview) bgClass = "bg-purple-500/20 border-purple-500 text-purple-300 font-bold"
+                    if (isCurrent) bgClass += " ring-2 ring-blue-400 border-transparent text-white"
 
                     return (
                       <button
@@ -512,7 +407,7 @@ export default function CBTExamEnginePage() {
                           setCurrentIndex(idx)
                           setVisited((prev) => ({ ...prev, [idx]: true }))
                         }}
-                        className={`h-9 w-9 rounded-xl font-mono text-xs font-bold border transition-all flex items-center justify-center ${bgClass} ${isCurr ? "ring-2 ring-blue-400 scale-105" : ""}`}
+                        className={`h-9 w-9 rounded-xl border flex items-center justify-center text-xs transition-all ${bgClass}`}
                       >
                         {idx + 1}
                       </button>
@@ -521,41 +416,42 @@ export default function CBTExamEnginePage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10 space-y-2">
-                <div className="flex justify-between text-xs text-slate-300">
-                  <span>Answered</span>
-                  <span className="font-bold text-emerald-400">{Object.keys(answers).length} / {exam.questions.length}</span>
-                </div>
-              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setShowSubmitModal(true)}
+                className="w-full rounded-2xl font-bold py-6 shadow-lg shadow-rose-500/25"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Submit Test
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Submit Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass p-8 rounded-3xl border border-white/20 max-w-md w-full space-y-6 bg-background">
-            <div className="space-y-2 text-center">
-              <h3 className="text-xl font-bold text-white font-outfit">Confirm Exam Submission</h3>
-              <p className="text-xs text-slate-300">
-                You have answered <strong className="text-emerald-400">{Object.keys(answers).length}</strong> out of <strong className="text-white">{exam.questions.length}</strong> questions.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div className="glass p-8 rounded-3xl border border-white/10 max-w-md w-full space-y-6 text-center">
+            <div className="h-16 w-16 mx-auto rounded-3xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white font-outfit">Submit Examination?</h3>
+              <p className="text-xs text-slate-400">
+                You have answered <span className="text-emerald-400 font-bold">{answeredCount}</span> out of <span className="text-white font-bold">{exam.questions.length}</span> questions.
               </p>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowSubmitModal(false)}
-                className="flex-1 rounded-xl font-bold text-xs"
-              >
-                Return to Test
+            <div className="flex justify-center space-x-3 pt-2">
+              <Button variant="ghost" onClick={() => setShowSubmitModal(false)} className="rounded-xl">
+                Continue Exam
               </Button>
-
               <Button
                 disabled={submitting}
                 onClick={handleSubmitExam}
-                className="flex-1 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25"
+                className="rounded-xl px-6 font-bold bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/25"
               >
                 {submitting ? "Submitting..." : "Yes, Submit Now"}
               </Button>
