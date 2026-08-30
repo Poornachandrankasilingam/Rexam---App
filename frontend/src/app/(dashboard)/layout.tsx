@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/layout/Sidebar";
+import { FloatingAiCoach } from "@/components/ui/FloatingAiCoach";
 import { Outlet } from "react-router-dom";
 
 export default function DashboardLayout() {
@@ -10,6 +11,7 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+      <FloatingAiCoach />
     </div>
   );
 }

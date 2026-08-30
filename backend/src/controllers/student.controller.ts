@@ -6,6 +6,10 @@ import {
   chatWithResultAi, 
   generateAdaptiveWeakMockExam 
 } from '../services/aiCoachService.js';
+import {
+  getAiCoachResponse,
+  processMockDrillTurn
+} from '../services/aiChatService.js';
 
 /**
  * Get Student Dashboard Statistics
@@ -802,6 +806,65 @@ export const generateWeakAreaMockTest = async (req: AuthenticatedRequest, res: R
   } catch (error: any) {
     console.error('❌ Weak Area Mock Generator Error:', error);
     return res.status(500).json({ message: 'Failed to generate weak area adaptive test', error: error.message });
+  }
+};
+
+/**
+ * Universal AI Coach Chat (Doubt Solving, Strategy, Step-by-Step proofs)
+ */
+export const chatWithUniversalAiCoach = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { message, chatHistory, targetExam } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ message: 'Message text is required' });
+    }
+
+    const reply = await getAiCoachResponse(message.trim(), chatHistory || [], {
+      name: req.user?.name,
+      targetExam: targetExam || 'Competitive Exam'
+    });
+
+    return res.status(200).json({
+      reply,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error('❌ Universal AI Coach Chat Error:', err);
+    return res.status(500).json({ message: 'Failed to process AI chat query', error: err.message });
+  }
+};
+
+/**
+ * Real-Time AI Mocking & Viva Examiner Drill Turn
+ */
+export const handleMockExamDrill = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const {
+      targetExam,
+      subject,
+      difficulty,
+      totalQuestions,
+      currentQuestionIndex,
+      previousQuestion,
+      studentAnswer,
+      history
+    } = req.body;
+
+    const turnResult = await processMockDrillTurn({
+      targetExam: targetExam || 'SSC CGL',
+      subject: subject || 'Quantitative Aptitude',
+      difficulty: difficulty || 'MEDIUM',
+      totalQuestions: totalQuestions || 5,
+      currentQuestionIndex: typeof currentQuestionIndex === 'number' ? currentQuestionIndex : 0,
+      previousQuestion,
+      studentAnswer,
+      history
+    });
+
+    return res.status(200).json(turnResult);
+  } catch (err: any) {
+    console.error('❌ Mock Exam Drill Error:', err);
+    return res.status(500).json({ message: 'Failed to process mock exam turn', error: err.message });
   }
 };
 

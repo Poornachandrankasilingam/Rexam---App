@@ -5,18 +5,19 @@ import {
   PenTool, 
   BarChart3, 
   Settings, 
-  LogOut,
-  Shield,
-  FileText,
-  PlusCircle,
-  Users,
-  Award,
-  Sparkles,
-  Layers,
-  CreditCard,
-  UserCheck,
-  HelpCircle,
-  FileSpreadsheet
+  LogOut, 
+  Shield, 
+  FileText, 
+  PlusCircle, 
+  Users, 
+  Award, 
+  Sparkles, 
+  Layers, 
+  CreditCard, 
+  UserCheck, 
+  HelpCircle, 
+  FileSpreadsheet,
+  Bot
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
@@ -29,6 +30,7 @@ export function Sidebar() {
 
   const adminLinks = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "AI Coach & Mocking", href: "/student/ai-coach", icon: Bot, badge: "AI" },
     { name: "Create Exam", href: "/admin/exams/create", icon: PlusCircle },
     { name: "Manage Exams", href: "/admin/exams", icon: PenTool },
     { name: "Question Papers", href: "/admin/question-papers", icon: FileSpreadsheet },
@@ -47,6 +49,7 @@ export function Sidebar() {
 
   const studentLinks = [
     { name: "Dashboard", href: "/student", icon: LayoutDashboard },
+    { name: "AI Coach & Mocking", href: "/student/ai-coach", icon: Bot, badge: "LIVE" },
     { name: "Available Exams", href: "/student/exams", icon: PenTool },
     { name: "My Exams", href: "/student/my-exams", icon: Layers },
     { name: "Previous Year Papers", href: "/student/pyqs", icon: FileText },
@@ -90,21 +93,32 @@ export function Sidebar() {
               key={link.name}
               to={link.href}
               className={cn(
-                "flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group relative",
+                "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group relative",
                 isActive 
                   ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border border-emerald-500 font-black" 
                   : "text-slate-800 hover:bg-emerald-50 hover:text-emerald-800 font-bold"
               )}
             >
-              {LinkIcon && (
-                <LinkIcon 
-                  className={cn(
-                    "h-4 w-4 transition-transform group-hover:scale-110 flex-shrink-0",
-                    isActive ? "text-white" : "text-emerald-600"
-                  )} 
-                />
+              <div className="flex items-center space-x-3 overflow-hidden">
+                {LinkIcon && (
+                  <LinkIcon 
+                    className={cn(
+                      "h-4 w-4 transition-transform group-hover:scale-110 flex-shrink-0",
+                      isActive ? "text-white" : "text-emerald-600"
+                    )} 
+                  />
+                )}
+                <span className="truncate">{link.name}</span>
+              </div>
+
+              {link.badge && (
+                <span className={cn(
+                  "text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase font-mono tracking-wider ml-1",
+                  isActive ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+                )}>
+                  {link.badge}
+                </span>
               )}
-              <span className="truncate">{link.name}</span>
             </Link>
           )
         })}

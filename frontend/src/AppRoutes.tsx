@@ -42,6 +42,7 @@ import StudentAnalyticsPage from "@/app/(dashboard)/student/analytics/page"
 import AIReportsPage from "@/app/(dashboard)/student/reports/page"
 import StudentProfilePage from "@/app/(dashboard)/student/profile/page"
 import StudentSettingsPage from "@/app/(dashboard)/student/settings/page"
+import AiCoachPage from "@/app/(dashboard)/student/ai-coach/page"
 
 // Helper component to redirect logged-in users away from /login or /register
 function AuthRedirect({ children }: { children: React.ReactNode }) {
@@ -261,6 +262,7 @@ export function AppRoutes() {
         }
       >
         <Route index element={<StudentDashboard />} />
+        <Route path="ai-coach" element={<AiCoachPage />} />
         <Route path="exams" element={<AvailableExamsPage />} />
         <Route path="my-exams" element={<MyExamsPage />} />
         <Route path="exam/:id/cbt" element={<CBTExamEnginePage />} />

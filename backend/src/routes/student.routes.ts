@@ -19,7 +19,9 @@ import {
   getLatestAiCoachReport,
   getAiCoachReportByResultId,
   chatWithAiCoach,
-  generateWeakAreaMockTest
+  generateWeakAreaMockTest,
+  chatWithUniversalAiCoach,
+  handleMockExamDrill
 } from '../controllers/student.controller.js';
 
 const router = Router();
@@ -29,11 +31,15 @@ router.use(authenticateJWT);
 // Student Dashboard & Analytics
 router.get('/dashboard', getStudentDashboard);
 
-// Rexam AI Performance Coach
+// Rexam AI Performance Coach & Chatbot
 router.get('/ai-coach/latest', getLatestAiCoachReport);
 router.get('/ai-coach/report/:resultId', getAiCoachReportByResultId);
 router.post('/ai-coach/chat', chatWithAiCoach);
 router.post('/ai-coach/generate-weak-mock', generateWeakAreaMockTest);
+
+// Universal AI Coach & Real-Time Mocking Drill
+router.post('/ai-chat/message', chatWithUniversalAiCoach);
+router.post('/ai-chat/mock-turn', handleMockExamDrill);
 
 // Exams & CBT Engine
 router.get('/exams', getAvailableExams);
