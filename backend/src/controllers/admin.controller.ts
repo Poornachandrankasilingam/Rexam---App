@@ -375,3 +375,24 @@ export const generateAiQuestionsHandler = async (req: AuthenticatedRequest, res:
     return res.status(500).json({ message: 'Failed to generate AI questions', error: error.message });
   }
 };
+
+/**
+ * Universal Gemini AI Vision OCR & Document Extractor
+ */
+export const extractDocumentOcrHandler = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { fileBase64, mimeType = 'image/png', subject = 'General' } = req.body;
+
+    if (!fileBase64) {
+      return res.status(400).json({ message: 'fileBase64 data is required' });
+    }
+
+    const { extractWithGeminiVision } = await import('../services/ocrExtractionService.js');
+    const result = await extractWithGeminiVision(fileBase64, mimeType, subject);
+
+    return res.status(200).json(result);
+  } catch (error: any) {
+    console.error('❌ OCR Extraction Error:', error);
+    return res.status(500).json({ message: 'Failed to extract document', error: error.message });
+  }
+};

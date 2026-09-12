@@ -2,9 +2,16 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import dns from 'node:dns';
+
+// Ensure fast IPv4 resolution on Windows to avoid IPv6 timeouts
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (_) {}
 
 // Ensure .env is loaded from backend directory, project root, or parent
 const possibleEnvPaths = [
@@ -25,6 +32,12 @@ import studentRoutes from './routes/student.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
+
+// High-speed HTTP Gzip/Brotli compression for all responses
+app.use(compression({
+  threshold: 512, // Compress anything over 512 bytes
+  level: 6
+}));
 
 // Enable CORS for local dev and all production deployment URLs
 app.use(cors({

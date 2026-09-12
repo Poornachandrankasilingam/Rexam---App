@@ -8,8 +8,10 @@ import {
 } from '../services/aiCoachService.js';
 import {
   getAiCoachResponse,
-  processMockDrillTurn
+  processMockDrillTurn,
+  getAiProviderStatus
 } from '../services/aiChatService.js';
+import { fastCache } from '../services/cacheService.js';
 
 /**
  * Get Student Dashboard Statistics
@@ -121,6 +123,12 @@ export const getStudentDashboard = async (req: AuthenticatedRequest, res: Respon
  */
 export const getAvailableExams = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const cacheKey = 'student:exams:available';
+    const cached = fastCache.get<any[]>(cacheKey);
+    if (cached) {
+      return res.status(200).json({ exams: cached });
+    }
+
     const exams = await prisma.exam.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -128,19 +136,21 @@ export const getAvailableExams = async (req: AuthenticatedRequest, res: Response
       }
     });
 
-    return res.status(200).json({
-      exams: exams.map((e) => ({
-        id: e.id,
-        title: e.title,
-        description: e.description,
-        code: e.code,
-        duration: e.duration,
-        totalMarks: e.totalMarks,
-        passingMarks: e.passingMarks,
-        totalQuestions: e._count.questions,
-        createdAt: e.createdAt
-      }))
-    });
+    const formatted = exams.map((e) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      code: e.code,
+      duration: e.duration,
+      totalMarks: e.totalMarks,
+      passingMarks: e.passingMarks,
+      totalQuestions: e._count.questions,
+      createdAt: e.createdAt
+    }));
+
+    fastCache.set(cacheKey, formatted, 20); // Cache for 20 seconds
+
+    return res.status(200).json({ exams: formatted });
   } catch (error: any) {
     console.error('❌ Error fetching available exams:', error);
     return res.status(500).json({ message: 'Failed to fetch available exams', error: error.message });
@@ -867,4 +877,32 @@ export const handleMockExamDrill = async (req: AuthenticatedRequest, res: Respon
     return res.status(500).json({ message: 'Failed to process mock exam turn', error: err.message });
   }
 };
+
+/**
+ * Get AI Coach Engine Connection & Model Status
+ */
+export const getAiCoachStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const cacheKey = 'ai:engine:status';
+    const cached = fastCache.get<any>(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
+    const status = getAiProviderStatus();
+    const payload = {
+      success: true,
+      ...status,
+      timestamp: new Date().toISOString()
+    };
+
+    fastCache.set(cacheKey, payload, 60); // Cache for 60 seconds
+
+    return res.status(200).json(payload);
+  } catch (err: any) {
+    console.error('❌ AI Coach Status Error:', err);
+    return res.status(500).json({ message: 'Failed to retrieve AI coach status', error: err.message });
+  }
+};
+
 

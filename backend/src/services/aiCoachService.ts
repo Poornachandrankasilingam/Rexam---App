@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma.js';
+import { callLlmChat, type ChatMessageItem } from './aiChatService.js';
 
 export interface SubjectAnalysisItem {
   subject: string;
@@ -542,7 +543,7 @@ export async function generateAiPerformanceReport(userId: string, resultId: stri
 /**
  * Handle "Ask AI About My Result" interactive student questions
  */
-export async function chatWithResultAi(userId: string, userMessage: string, resultId?: string) {
+export async function chatWithResultAi(userId: string, userMessage: string, resultId?: string): Promise<string> {
   // Fetch the latest or specified report
   let report = null;
   if (resultId) {
@@ -567,6 +568,43 @@ export async function chatWithResultAi(userId: string, userMessage: string, resu
   const mistakeList: MistakeAnalysisItem[] = JSON.parse(report.mistakeAnalysis || '[]');
   const studyPlanList: StudyPlanDay[] = JSON.parse(report.studyPlan || '[]');
 
+  // Attempt real LLM coaching with full context if API keys are active
+  try {
+    const systemPrompt = `You are "Rexam AI Performance Coach" — an expert academic mentor analyzing a student's real exam attempt.
+
+STUDENT'S EXAM RECORD:
+- Score: ${report.overallScore} out of ${report.totalMarks} marks
+- Overall Accuracy: ${report.accuracy}% (Correct: ${report.correctCount}, Incorrect: ${report.wrongCount}, Unanswered: ${report.unansweredCount})
+- Exam Readiness Rating: ${report.readinessScore}/100 (${report.readinessLevel})
+- Performance Level: ${report.performanceLevel}
+- Top Weak Topics: ${weakTopics.length > 0 ? weakTopics.join(', ') : 'None identified'}
+- Top Strong Topics: ${strongTopics.length > 0 ? strongTopics.join(', ') : 'None identified'}
+- Subject Breakdown:
+${subjectList.map(s => `  • ${s.subject}: ${s.accuracy}% accuracy (${s.correct} correct, ${s.wrong} wrong, score: ${s.score}/${s.totalMarks}) - ${s.strength}`).join('\n')}
+
+- Mistakes Detail:
+${mistakeList.slice(0, 4).map((m, idx) => `  ${idx + 1}. [${m.subject} - ${m.topic}] Q: "${m.questionText.slice(0, 90)}..." | Student Choice: "${m.studentAnswer || 'Skipped'}" | Correct: "${m.correctAnswer}" | Diagnostic Reason: ${m.reason} | Tip: ${m.tips}`).join('\n')}
+
+INSTRUCTIONS:
+1. Answer the student's question accurately, directly referencing their exact marks, accuracy percentage, and specific mistake reasons shown above.
+2. If they ask why they lost marks, highlight their weak topics and specific mistake causes (e.g. calculation errors, rushing, time pressure).
+3. If they ask what or which subject to study, recommend focusing on their lowest accuracy subject and Day 1 of their plan.
+4. Give concrete, motivating, step-by-step coaching tips with bold keywords and bullet points.`;
+
+    const messages: ChatMessageItem[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ];
+
+    const aiResponse = await callLlmChat(messages, 0.6);
+    if (aiResponse && aiResponse.trim().length > 20 && !aiResponse.startsWith('### 💡 Rexam AI Coach Insights\n**Regarding:')) {
+      return aiResponse;
+    }
+  } catch (e: any) {
+    console.warn('AI Result Chat LLM call error, using deterministic fallback...', e?.message);
+  }
+
+  // Deterministic Intelligent Fallback
   const msg = userMessage.toLowerCase();
 
   if (msg.includes('why') && (msg.includes('lose marks') || msg.includes('lost marks') || msg.includes('marks'))) {

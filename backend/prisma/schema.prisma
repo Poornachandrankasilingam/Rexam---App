@@ -34,6 +34,9 @@ model User {
   authProvider    String          @default("LOCAL")
   avatar          String?
   aiReports       AiPerformanceReport[]
+
+  @@index([role])
+  @@index([createdAt])
 }
 
 model Exam {
@@ -56,6 +59,10 @@ model Exam {
   aiReports     AiPerformanceReport[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+
+  @@index([createdById])
+  @@index([code])
+  @@index([createdAt])
 }
 
 model Section {
@@ -64,6 +71,8 @@ model Section {
   exam        Exam       @relation(fields: [examId], references: [id])
   examId      String
   questions   Question[]
+
+  @@index([examId])
 }
 
 model Question {
@@ -83,6 +92,11 @@ model Question {
   sectionId     String?
   pyq           PyqBank?     @relation(fields: [pyqId], references: [id])
   pyqId         String?
+
+  @@index([examId])
+  @@index([subject])
+  @@index([topic])
+  @@index([sectionId])
 }
 
 model Option {
@@ -91,6 +105,8 @@ model Option {
   isCorrect   Boolean  @default(false)
   question    Question @relation(fields: [questionId], references: [id])
   questionId  String
+
+  @@index([questionId])
 }
 
 model Result {
@@ -105,8 +121,12 @@ model Result {
   incorrect     Int
   accuracy      Float
   timeSpent     Int       // in seconds
-  analysis      String?   // changed Json? to String? for SQLite compatibility if needed, or keeping it as Json? SQLite prisma supports Json? actually. Let's keep it Json?
+  analysis      String?   // JSON string
   createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([examId])
+  @@index([userId, createdAt])
 }
 
 model ProctoringLog {
@@ -120,6 +140,9 @@ model ProctoringLog {
   screenshotUrl String?
   riskScore     Float    @default(0)
   details       String?
+
+  @@index([userId, examId])
+  @@index([timestamp])
 }
 
 model PyqBank {
@@ -130,6 +153,9 @@ model PyqBank {
   topic     String?
   questions Question[]
   createdAt DateTime   @default(now())
+
+  @@index([examName, year])
+  @@index([subject])
 }
 
 model AIQuestionBank {
@@ -141,6 +167,8 @@ model AIQuestionBank {
   answer      String
   explanation String?
   createdAt   DateTime   @default(now())
+
+  @@index([subject, topic])
 }
 
 model ActivityLog {
@@ -149,6 +177,9 @@ model ActivityLog {
   userId    String
   action    String
   timestamp DateTime @default(now())
+
+  @@index([userId])
+  @@index([timestamp])
 }
 
 model Subscription {
@@ -158,6 +189,8 @@ model Subscription {
   plan      String   // e.g., "FREE", "PREMIUM"
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model ExamAttempt {
@@ -171,6 +204,10 @@ model ExamAttempt {
   timeRemainingSec Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([examId])
+  @@index([userId, examId])
 }
 
 model OtpVerification {
@@ -186,6 +223,9 @@ model OtpVerification {
   purpose   String   @default("REGISTRATION") // "REGISTRATION", "LOGIN", "FORGOT_PASSWORD"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([target])
+  @@index([userId])
 }
 
 model AiPerformanceReport {
@@ -217,7 +257,8 @@ model AiPerformanceReport {
   trendSummary     String?  // Historical comparison text
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([resultId])
+  @@index([userId, createdAt])
 }
-
-
-

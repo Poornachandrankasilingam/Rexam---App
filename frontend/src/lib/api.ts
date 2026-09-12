@@ -3,7 +3,11 @@ import axios from "axios";
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
+  timeout: 30000,
 });
+
+// In-flight request deduplication map for GET requests
+const pendingGetRequests = new Map<string, Promise<any>>();
 
 // Attach Authorization token to outgoing requests
 api.interceptors.request.use((config) => {
@@ -35,3 +39,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

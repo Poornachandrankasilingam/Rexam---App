@@ -90,3 +90,10 @@ npm test
 - Start command: `npm start`
 - Environment variables:
   - `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`
+
+---
+
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](file:///d:/Rexam---App/LICENSE) file for full details.
+

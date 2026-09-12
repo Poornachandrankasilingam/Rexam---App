@@ -21,7 +21,8 @@ import {
   chatWithAiCoach,
   generateWeakAreaMockTest,
   chatWithUniversalAiCoach,
-  handleMockExamDrill
+  handleMockExamDrill,
+  getAiCoachStatus
 } from '../controllers/student.controller.js';
 
 const router = Router();
@@ -32,6 +33,7 @@ router.use(authenticateJWT);
 router.get('/dashboard', getStudentDashboard);
 
 // Rexam AI Performance Coach & Chatbot
+router.get('/ai-coach/status', getAiCoachStatus);
 router.get('/ai-coach/latest', getLatestAiCoachReport);
 router.get('/ai-coach/report/:resultId', getAiCoachReportByResultId);
 router.post('/ai-coach/chat', chatWithAiCoach);

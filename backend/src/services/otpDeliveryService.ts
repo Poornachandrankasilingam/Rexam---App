@@ -80,7 +80,7 @@ export async function sendEmailOtp({ target, otpCode, userName }: OtpDeliveryOpt
         })
       });
 
-      const resData = await res.json().catch(() => null);
+      const resData: any = await res.json().catch(() => null);
 
       if (res.ok) {
         console.log(`📬 [RESEND API] Live OTP email dispatched to ${target} (ID: ${resData?.id || 'ok'})`);
@@ -105,7 +105,7 @@ export async function sendEmailOtp({ target, otpCode, userName }: OtpDeliveryOpt
               text: textMessage
             })
           });
-          const retryData = await retryRes.json().catch(() => null);
+          const retryData: any = await retryRes.json().catch(() => null);
           if (retryRes.ok) {
             console.log(`📬 [RESEND API] Live OTP email dispatched on retry to ${target} (ID: ${retryData?.id || 'ok'})`);
             return true;

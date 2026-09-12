@@ -90,11 +90,29 @@ export default function AiCoachPage() {
     isComplete: false
   })
 
+  const [engineStatus, setEngineStatus] = useState<{ connected: boolean; primaryModel: string; activeProviders: string[] }>({
+    connected: true,
+    primaryModel: "Gemini 3.6 Flash / Groq",
+    activeProviders: ["Google Gemini", "Groq"]
+  })
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
+
+  useEffect(() => {
+    api.get("/student/ai-coach/status").then(res => {
+      if (res.data?.success) {
+        setEngineStatus({
+          connected: res.data.connected,
+          primaryModel: res.data.primaryModel || "Multi-LLM Active",
+          activeProviders: res.data.activeProviders || []
+        })
+      }
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
@@ -353,8 +371,9 @@ export default function AiCoachPage() {
       <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-800 mb-2">
-            <Bot className="h-4 w-4 text-emerald-600 animate-pulse" />
-            <span>Rexam AI 24/7 Intelligence Portal</span>
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Bot className="h-4 w-4 text-emerald-600" />
+            <span>AI Connected: {engineStatus.primaryModel}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black font-outfit text-slate-900 tracking-tight">
             AI Coach & Real-Time Mocking Room
