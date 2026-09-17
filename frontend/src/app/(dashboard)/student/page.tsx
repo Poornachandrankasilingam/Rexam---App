@@ -19,7 +19,7 @@ import {
   TrendingUp, 
   Loader2 
 } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 
@@ -70,6 +70,22 @@ interface AiCoachSummary {
 export default function StudentDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null)
+  
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
   const [data, setData] = useState<DashboardData | null>(null)
   const [aiCoach, setAiCoach] = useState<AiCoachSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -153,7 +169,22 @@ export default function StudentDashboard() {
   const topWeak = aiCoach?.report?.weaknesses?.[0] || "Quantitative Aptitude"
 
   return (
-    <div className="space-y-8 pb-12 text-slate-900">
+    <div className="space-y-8 pb-12 text-slate-900 relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="px-4 py-3 bg-emerald-900 border border-emerald-700 text-white text-sm font-semibold rounded-2xl shadow-2xl shadow-emerald-900/50 flex items-center gap-2 pointer-events-auto"
+          >
+            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div>

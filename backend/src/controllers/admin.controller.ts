@@ -355,7 +355,7 @@ export const generateAiQuestionsHandler = async (req: AuthenticatedRequest, res:
 
     const { generateAiQuestions } = await import('../services/aiQuestionGeneratorService.js');
 
-    const generated = generateAiQuestions({
+    const generated = await generateAiQuestions({
       subject,
       topic,
       difficulty,

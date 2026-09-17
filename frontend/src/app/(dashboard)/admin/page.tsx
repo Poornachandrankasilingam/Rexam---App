@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Users, PenTool, Layers, Shield, PlusCircle, ArrowRight, HelpCircle } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 
@@ -37,6 +38,22 @@ type AdminDashboardData = {
 }
 
 export default function AdminDashboard() {
+  const location = useLocation()
+  const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null)
+  
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
   const [data, setData] = useState<AdminDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -64,7 +81,22 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="space-y-8 pb-12 text-slate-900">
+    <div className="space-y-8 pb-12 text-slate-900 relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="px-4 py-3 bg-emerald-900 border border-emerald-700 text-white text-sm font-semibold rounded-2xl shadow-2xl shadow-emerald-900/50 flex items-center gap-2 pointer-events-auto"
+          >
+            <Shield className="h-4 w-4 text-emerald-400" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        </div>
+      )}
+
       {/* Banner Header */}
       <div className="p-8 rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>

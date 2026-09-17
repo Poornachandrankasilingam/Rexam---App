@@ -43,9 +43,9 @@ export default function LoginPage() {
       login(accessToken, user)
 
       if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
-        navigate("/admin")
+        navigate("/admin", { state: { toastMessage: `Successfully signed in as ${user.email}` } })
       } else {
-        navigate("/student")
+        navigate("/student", { state: { toastMessage: `Successfully signed in as ${user.email}` } })
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } }

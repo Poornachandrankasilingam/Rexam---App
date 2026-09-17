@@ -6,10 +6,10 @@ async function runAiQuestionGenTests() {
   let passed = 0;
   let failed = 0;
 
-  function test(name: string, fn: () => void) {
+  async function test(name: string, fn: () => Promise<void>) {
     process.stdout.write(`⏳ Testing: ${name}... `);
     try {
-      fn();
+      await fn();
       console.log('✅ PASSED');
       passed++;
     } catch (err: any) {
@@ -19,8 +19,8 @@ async function runAiQuestionGenTests() {
   }
 
   // 1. Test Quantitative Aptitude Generator
-  test('Generate Quantitative Aptitude Questions with Math Solutions', () => {
-    const questions = generateAiQuestions({
+  await test('Generate Quantitative Aptitude Questions with Math Solutions', async () => {
+    const questions = await generateAiQuestions({
       subject: 'Quantitative Aptitude',
       topic: 'Profit & Loss',
       difficulty: 'EASY',
@@ -52,8 +52,8 @@ async function runAiQuestionGenTests() {
   });
 
   // 2. Test Logical Reasoning Generator
-  test('Generate Logical Reasoning Questions with Deductive Proofs', () => {
-    const questions = generateAiQuestions({
+  await test('Generate Logical Reasoning Questions with Deductive Proofs', async () => {
+    const questions = await generateAiQuestions({
       subject: 'Logical Reasoning',
       topic: 'Syllogism',
       difficulty: 'EASY',
@@ -77,8 +77,8 @@ async function runAiQuestionGenTests() {
   });
 
   // 3. Test Verbal Ability & Reasoning Generator
-  test('Generate Verbal Ability & Reasoning Questions with Grammar Notes', () => {
-    const questions = generateAiQuestions({
+  await test('Generate Verbal Ability & Reasoning Questions with Grammar Notes', async () => {
+    const questions = await generateAiQuestions({
       subject: 'Verbal Ability',
       topic: 'Synonyms & Antonyms',
       difficulty: 'EASY',
@@ -97,8 +97,8 @@ async function runAiQuestionGenTests() {
   });
 
   // 4. Test Hindi / Multilingual Generator
-  test('Generate Hindi / Devanagari Aptitude & Reasoning Questions', () => {
-    const questions = generateAiQuestions({
+  await test('Generate Hindi / Devanagari Aptitude & Reasoning Questions', async () => {
+    const questions = await generateAiQuestions({
       subject: 'Quantitative Aptitude',
       topic: 'ALL',
       difficulty: 'EASY',

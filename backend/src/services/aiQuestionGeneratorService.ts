@@ -6,6 +6,7 @@
  * 2. Logical Reasoning (Analytical, Deductive, & Structural)
  * 3. Verbal Ability & Reasoning (English / Multilingual Grammar & Vocab)
  */
+import { callLlmChat, cleanAiOutput, type ChatMessageItem } from './aiChatService.js';
 
 export interface GeneratedQuestionOption {
   text: string;
@@ -419,68 +420,136 @@ const HINDI_TEMPLATES: QuestionTemplate[] = [
 /**
  * Main Generator Function
  */
-export function generateAiQuestions(params: GenerateAiQuestionsParams): GeneratedAiQuestion[] {
+export async function generateAiQuestions(params: GenerateAiQuestionsParams): Promise<GeneratedAiQuestion[]> {
   const {
     subject = "Quantitative Aptitude",
     topic,
-    difficulty,
+    difficulty = "MEDIUM",
     count = 10,
     language = "English"
   } = params;
 
-  let pool: QuestionTemplate[] = [];
-
-  if (language === "Hindi") {
-    pool = [...HINDI_TEMPLATES];
-  } else {
-    if (subject.toLowerCase().includes("quant") || subject.toLowerCase().includes("aptitude")) {
-      pool = [...QUANT_TEMPLATES];
-    } else if (subject.toLowerCase().includes("logic") || subject.toLowerCase().includes("reasoning")) {
-      pool = [...LOGICAL_TEMPLATES];
-    } else if (subject.toLowerCase().includes("verbal") || subject.toLowerCase().includes("english")) {
-      pool = [...VERBAL_TEMPLATES];
-    } else {
-      // General mix
-      pool = [...QUANT_TEMPLATES, ...LOGICAL_TEMPLATES, ...VERBAL_TEMPLATES];
-    }
-  }
-
-  if (pool.length === 0) {
-    pool = [...QUANT_TEMPLATES, ...LOGICAL_TEMPLATES];
-  }
-
-  // Filter by topic if specified
-  if (topic && topic !== "ALL") {
-    const topicFiltered = pool.filter(t => t.topic.toLowerCase().includes(topic.toLowerCase()));
-    if (topicFiltered.length > 0) pool = topicFiltered;
-  }
-
-  // Filter by difficulty if specified
-  if (difficulty) {
-    const diffFiltered = pool.filter(t => t.difficulty === difficulty);
-    if (diffFiltered.length > 0) pool = diffFiltered;
-  }
-
-  const generatedQuestions: GeneratedAiQuestion[] = [];
   const requestedCount = Math.max(1, Math.min(count, 50));
 
-  for (let i = 0; i < requestedCount; i++) {
-    const template = pool[i % pool.length];
-    const generated = template.generate();
+  try {
+    const prompt = `You are an expert exam question creator. Generate ${requestedCount} high-quality questions for the subject "${subject}"${topic ? ` and topic "${topic}"` : ''} at a ${difficulty} difficulty level in ${language}.
+    
+You must return your response EXCLUSIVELY as a valid JSON array of objects. Do not include any markdown formatting, code blocks, or text outside of the JSON array.
 
-    generatedQuestions.push({
+Each object in the array must have the following structure:
+{
+  "text": "The question text",
+  "explanation": "A clear step-by-step explanation of the answer",
+  "options": [
+    { "text": "Option 1", "isCorrect": true },
+    { "text": "Option 2", "isCorrect": false },
+    { "text": "Option 3", "isCorrect": false },
+    { "text": "Option 4", "isCorrect": false }
+  ]
+}
+
+Ensure there are exactly 4 options per question, and exactly ONE option has "isCorrect": true.`;
+
+    const messages: ChatMessageItem[] = [
+      {
+        role: 'system',
+        content: 'You are an AI Question Generator that strictly outputs valid JSON.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const aiResponse = await callLlmChat(messages, 'MOCKING');
+    const cleanedResponse = cleanAiOutput(aiResponse);
+    
+    // Attempt to extract JSON if there are code blocks despite instructions
+    const jsonMatch = cleanedResponse.match(/\[[\s\S]*\]/);
+    const jsonToParse = jsonMatch ? jsonMatch[0] : cleanedResponse;
+    
+    const parsed = JSON.parse(jsonToParse);
+    
+    if (!Array.isArray(parsed)) {
+      throw new Error("Response is not a JSON array");
+    }
+
+    const generatedQuestions: GeneratedAiQuestion[] = parsed.map((q: any, i: number) => ({
       id: `ai-q-${Date.now()}-${i + 1}`,
-      text: generated.text,
-      subject: template.subject,
-      topic: template.topic,
-      difficulty: template.difficulty,
+      text: q.text || 'Missing text',
+      subject,
+      topic: topic || 'General',
+      difficulty,
       marks: 2,
       negativeMarks: 0.5,
-      explanation: generated.explanation,
-      options: generated.options,
-      language: template.language
-    });
-  }
+      explanation: q.explanation || 'No explanation provided.',
+      options: q.options || [],
+      language
+    }));
 
-  return generatedQuestions;
+    // Basic validation
+    if (generatedQuestions.length > 0 && generatedQuestions[0].options.length >= 2) {
+      return generatedQuestions.slice(0, requestedCount);
+    }
+    
+    throw new Error("Parsed questions failed validation");
+
+  } catch (error) {
+    console.error("AI Question Generation failed, falling back to templates:", error);
+    // Fallback logic
+    let pool: QuestionTemplate[] = [];
+
+    if (language === "Hindi") {
+      pool = [...HINDI_TEMPLATES];
+    } else {
+      if (subject.toLowerCase().includes("quant") || subject.toLowerCase().includes("aptitude")) {
+        pool = [...QUANT_TEMPLATES];
+      } else if (subject.toLowerCase().includes("logic") || subject.toLowerCase().includes("reasoning")) {
+        pool = [...LOGICAL_TEMPLATES];
+      } else if (subject.toLowerCase().includes("verbal") || subject.toLowerCase().includes("english")) {
+        pool = [...VERBAL_TEMPLATES];
+      } else {
+        // General mix
+        pool = [...QUANT_TEMPLATES, ...LOGICAL_TEMPLATES, ...VERBAL_TEMPLATES];
+      }
+    }
+
+    if (pool.length === 0) {
+      pool = [...QUANT_TEMPLATES, ...LOGICAL_TEMPLATES];
+    }
+
+    // Filter by topic if specified
+    if (topic && topic !== "ALL") {
+      const topicFiltered = pool.filter(t => t.topic.toLowerCase().includes(topic.toLowerCase()));
+      if (topicFiltered.length > 0) pool = topicFiltered;
+    }
+
+    // Filter by difficulty if specified
+    if (difficulty) {
+      const diffFiltered = pool.filter(t => t.difficulty === difficulty);
+      if (diffFiltered.length > 0) pool = diffFiltered;
+    }
+
+    const generatedQuestions: GeneratedAiQuestion[] = [];
+
+    for (let i = 0; i < requestedCount; i++) {
+      const template = pool[i % pool.length];
+      const generated = template.generate();
+
+      generatedQuestions.push({
+        id: `fallback-q-${Date.now()}-${i + 1}`,
+        text: generated.text,
+        subject: template.subject,
+        topic: template.topic,
+        difficulty: template.difficulty,
+        marks: 2,
+        negativeMarks: 0.5,
+        explanation: generated.explanation,
+        options: generated.options,
+        language: template.language
+      });
+    }
+
+    return generatedQuestions;
+  }
 }
