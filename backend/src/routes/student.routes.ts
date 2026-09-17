@@ -11,6 +11,7 @@ import {
   logProctoringEvent,
   getStudentResults,
   getResultById,
+  getExamReview,
   saveStudentResult,
   generateAiMockTest,
   getStudentPyqs,
@@ -50,6 +51,7 @@ router.get('/exams/:id', getCbtExam);
 router.post('/exams/:id/start', startOrRecoverAttempt);
 router.post('/exams/:id/save', saveAttemptProgress);
 router.post('/exams/:id/submit', submitExamAttempt);
+router.get('/exams/:id/review/:resultId', getExamReview);
 
 // AI Proctoring
 router.post('/proctoring/log', logProctoringEvent);
@@ -57,6 +59,7 @@ router.post('/proctoring/log', logProctoringEvent);
 // Results & History
 router.get('/results', getStudentResults);
 router.get('/results/:id', getResultById);
+router.get('/results/:id/review', getExamReview);
 router.post('/results', saveStudentResult);
 
 // AI Mock Test Generator & PYQs

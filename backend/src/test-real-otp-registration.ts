@@ -9,7 +9,14 @@ let server: Server;
 
 async function runRealOtpRegistrationTest() {
   console.log('🧪 Starting Live Resend Email OTP & Registration Flow Verification...\n');
-  server = app.listen(5000);
+  try {
+    server = app.listen(5000);
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        // Dev server already running
+      }
+    });
+  } catch (e) {}
 
   const testEmail = 'poornachandran106@gmail.com';
   const testName = 'Poornachandran';
@@ -95,20 +102,19 @@ async function runRealOtpRegistrationTest() {
     // To simulate the user entering the real OTP received in their email,
     // we find the 6-digit match by comparing bcrypt hash
     console.log('\n🔑 Step 4: Finding matching OTP generated for testing verification...');
-    let matchingOtp: string | null = null;
-    for (let code = 100000; code <= 999999; code++) {
-      const isMatch = await bcrypt.compare(String(code), otpRecord.otpHash);
-      if (isMatch) {
-        matchingOtp = String(code);
-        break;
-      }
-    }
+    
+    // Instead of brute-forcing bcrypt (which takes hours), we will simply overwrite 
+    // the hash in the DB with a known OTP to continue the E2E verification test.
+    const knownOtp = '123456';
+    const knownHash = await bcrypt.hash(knownOtp, 10);
+    await prisma.otpVerification.update({
+      where: { id: otpRecord.id },
+      data: { otpHash: knownHash }
+    });
+    
+    let matchingOtp: string | null = knownOtp;
 
-    if (!matchingOtp) {
-      throw new Error('Failed to resolve OTP hash for verification test');
-    }
-
-    console.log('✅ Found matching OTP for end-to-end flow test.');
+    console.log('✅ Overwrote OTP hash with known test OTP for end-to-end flow test.');
     console.log(`📥 Submitting OTP verification for ${testEmail}...`);
 
     const verifyRes = await fetch(`${API_URL}/api/auth/verify-otp`, {

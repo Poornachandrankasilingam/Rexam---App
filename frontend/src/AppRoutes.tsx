@@ -252,6 +252,16 @@ export function AppRoutes() {
         <Route path="settings" element={<AdminSettingsPage />} />
       </Route>
 
+      {/* Standalone Secure CBT Examination Engine (Distraction-Free, No Sidebar/Coach) */}
+      <Route 
+        path="/student/exam/:id/cbt" 
+        element={
+          <ProtectedRoute allowedRoles={["STUDENT"]}>
+            <CBTExamEnginePage />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* Protected Student Routes (Accessible only to STUDENT) */}
       <Route 
         path="/student" 
@@ -265,7 +275,6 @@ export function AppRoutes() {
         <Route path="ai-coach" element={<AiCoachPage />} />
         <Route path="exams" element={<AvailableExamsPage />} />
         <Route path="my-exams" element={<MyExamsPage />} />
-        <Route path="exam/:id/cbt" element={<CBTExamEnginePage />} />
         <Route path="practice" element={<StudentPracticePage />} />
         <Route path="pyqs" element={<StudentPyqsPage />} />
         <Route path="mock-tests" element={<AIMockTestsPage />} />

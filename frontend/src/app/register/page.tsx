@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Mail, Lock, User, Phone, ArrowRight } from "lucide-react"
+import { Mail, Lock, User, Phone, ArrowRight, ShieldCheck } from "lucide-react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { useAuth } from "@/context/AuthContext"
+import { BrandLogo } from "@/components/ui/BrandLogo"
 import api from "@/lib/api"
 
 export default function RegisterPage() {
@@ -75,34 +76,30 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080c14] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/15 rounded-full blur-[140px] pointer-events-none" />
+    <div className="min-h-screen bg-[#070b13] mesh-bg flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Ambient Glows */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
         className="w-full max-w-md relative z-10 my-8"
       >
         <div className="glass p-8 md:p-10 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+          {/* Brand Header */}
           <div className="text-center space-y-3">
-            <Link to="/" className="inline-block group mb-2">
-              <div className="relative inline-block transform-gpu transition-transform duration-300 group-hover:scale-105">
-                <div className="absolute -inset-2 bg-gradient-to-r from-blue-500 via-cyan-400 to-teal-400 rounded-3xl blur-md opacity-60 group-hover:opacity-100 transition duration-300"></div>
-                <div className="relative p-2 rounded-2xl bg-slate-950/90 border border-cyan-400/50 shadow-2xl">
-                  <img
-                    src="/logo.png"
-                    alt="Rexam AI Logo"
-                    className="h-16 w-16 object-contain rounded-xl drop-shadow-[0_4px_10px_rgba(0,180,255,0.3)]"
-                  />
-                </div>
-              </div>
+            <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+              <BrandLogo size="lg" />
             </Link>
-            <h1 className="text-3xl font-extrabold font-outfit text-white">Create Account</h1>
-            <p className="text-xs text-cyan-300/80 font-bold uppercase tracking-widest font-mono">Study Purpose | Intelligent Learning</p>
+            <h1 className="text-2xl font-extrabold font-outfit text-white">Create Your Account</h1>
+            <p className="text-xs text-slate-400 font-medium">
+              Join thousands of aspirants preparing with Rexam AI
+            </p>
           </div>
 
-          {/* Google One-Click Sign Up */}
+          {/* Google One-Click Sign In */}
           <div className="space-y-3">
             <GoogleSignInButton
               text="Sign up with Google"
@@ -113,125 +110,113 @@ export default function RegisterPage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/10" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#0f172a] px-3 text-slate-400 font-medium">Or register with email</span>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-wider font-bold">
+                <span className="bg-[#0c1220] px-3 text-slate-400 font-mono">Or register with email</span>
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold rounded-2xl">
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold rounded-2xl animate-in fade-in">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Registration Form */}
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Full Name</label>
+              <label className="text-xs font-bold text-slate-300">Full Name</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                  <User className="h-4 w-4" />
-                </div>
+                <User className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
+                  required
                   placeholder="Rahul Sharma"
-                  className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
+                  className="w-full pl-10 pr-4 py-2.5 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 transition-all font-medium"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Email Address / Gmail</label>
+              <label className="text-xs font-bold text-slate-300">Email Address</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                  <Mail className="h-4 w-4" />
-                </div>
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <input
                   type="email"
-                  placeholder="name@gmail.com"
-                  className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
+                  required
+                  placeholder="name@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
+                  className="w-full pl-10 pr-4 py-2.5 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 transition-all font-medium"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">
-                Phone Number <span className="text-slate-500 font-normal">(Optional)</span>
-              </label>
+              <label className="text-xs font-bold text-slate-300">Mobile Number (Optional)</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                  <Phone className="h-4 w-4" />
-                </div>
+                <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <input
-                  type="text"
-                  placeholder="+919876543210"
-                  className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
+                  type="tel"
+                  placeholder="9876543210"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full pl-10 pr-4 py-2.5 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 transition-all font-medium"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Password</label>
+                <label className="text-xs font-bold text-slate-300">Password</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="h-4 w-4" />
-                  </div>
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                   <input
                     type="password"
-                    placeholder="Min 6 chars"
-                    className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
+                    required
+                    placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
+                    className="w-full pl-10 pr-4 py-2.5 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 transition-all font-medium"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Confirm Password</label>
+                <label className="text-xs font-bold text-slate-300">Confirm Password</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="h-4 w-4" />
-                  </div>
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                   <input
                     type="password"
-                    placeholder="Confirm password"
-                    className="w-full pl-11 pr-4 py-3 bg-secondary/50 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-blue-500 transition-all font-semibold"
+                    required
+                    placeholder="••••••••"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    required
+                    className="w-full pl-10 pr-4 py-2.5 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/40 transition-all font-medium"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="pt-2">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full py-6 rounded-2xl text-sm font-bold shadow-xl shadow-blue-600/30 bg-blue-600 hover:bg-blue-500 border border-blue-400/30 transition-all"
-              >
-                {loading ? "Creating Account..." : "Create Rexam Account"}
-                {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="btn-3d-green w-full rounded-2xl py-3.5 font-bold text-white shadow-lg shadow-emerald-500/25 mt-3"
+            >
+              {loading ? "Creating Account..." : "Create Account"}
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </form>
 
-          <p className="text-center text-xs text-slate-400">
+          {/* Footer Sign in link */}
+          <div className="pt-2 text-center text-xs text-slate-400">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-400 font-bold hover:underline">
-              Sign in
+            <Link to="/login" className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
+              Sign In Here
             </Link>
-          </p>
+          </div>
         </div>
       </motion.div>
     </div>

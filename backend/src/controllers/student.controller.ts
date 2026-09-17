@@ -194,18 +194,38 @@ export const getExamByCode = async (req: AuthenticatedRequest, res: Response) =>
 };
 
 /**
- * Get CBT Exam Full Payload (Questions, Options)
+ * Get CBT Exam Full Payload (Questions, Options ONLY - zero leaks before submit)
  */
 export const getCbtExam = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const examId = String(req.params.id);
     const exam = await prisma.exam.findUnique({
       where: { id: examId },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        code: true,
+        duration: true,
+        totalMarks: true,
+        passingMarks: true,
         questions: {
-          include: {
+          select: {
+            id: true,
+            text: true,
+            type: true,
+            difficulty: true,
+            marks: true,
+            negativeMarks: true,
+            subject: true,
+            topic: true,
+            // NOTE: explanation and correct answer are strictly excluded before submission
             options: {
-              select: { id: true, text: true }
+              select: {
+                id: true,
+                text: true
+                // NOTE: isCorrect is strictly excluded
+              }
             }
           }
         }
@@ -275,8 +295,17 @@ export const saveAttemptProgress = async (req: AuthenticatedRequest, res: Respon
     const examId = String(req.params.id);
     const { answers, timeRemainingSec } = req.body;
 
-    await prisma.examAttempt.updateMany({
-      where: { userId, examId, status: 'IN_PROGRESS' },
+    // Only update if still in progress to prevent tampering after submit
+    const activeAttempt = await prisma.examAttempt.findFirst({
+      where: { userId, examId, status: 'IN_PROGRESS' }
+    });
+
+    if (!activeAttempt) {
+      return res.status(400).json({ message: 'Attempt is already submitted or does not exist' });
+    }
+
+    await prisma.examAttempt.update({
+      where: { id: activeAttempt.id },
       data: {
         savedAnswersJson: JSON.stringify(answers || {}),
         timeRemainingSec: Number(timeRemainingSec || 0),
@@ -292,7 +321,8 @@ export const saveAttemptProgress = async (req: AuthenticatedRequest, res: Respon
 };
 
 /**
- * Submit CBT Exam Attempt and Grade Answers
+ * Submit CBT Exam Attempt and Evaluate Answers Securely
+ * Flow: Student Answers -> Submit Exam -> Save Answers -> Mark SUBMITTED -> Evaluate Server-side
  */
 export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -313,56 +343,146 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
 
     if (!exam) return res.status(404).json({ message: 'Exam not found' });
 
+    // Prevent duplicate submission if the attempt was already marked SUBMITTED
+    const activeAttempt = await prisma.examAttempt.findFirst({
+      where: { userId, examId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (activeAttempt && activeAttempt.status === 'SUBMITTED') {
+      const existingResult = await prisma.result.findFirst({
+        where: { userId, examId },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (existingResult) {
+        return res.status(200).json({
+          message: 'Exam has already been submitted',
+          resultId: existingResult.id,
+          alreadySubmitted: true
+        });
+      }
+    }
+
+    // Evaluate every student answer against database correct choices
     let correct = 0;
     let incorrect = 0;
     let unanswered = 0;
     let earnedMarks = 0;
 
+    const subjectStats: Record<string, { total: number; correct: number; wrong: number; score: number }> = {};
+    const topicStats: Record<string, { subject: string; total: number; correct: number; wrong: number }> = {};
+
     const detailedExplanations: Array<{
       questionId: string;
       questionText: string;
-      userOptionId: string | null;
+      subject: string;
+      topic: string;
+      difficulty: string;
+      marks: number;
+      negativeMarks: number;
+      studentOptionId: string | null;
+      studentOptionText: string | null;
       correctOptionId: string | null;
+      correctOptionText: string | null;
+      options: Array<{ id: string; text: string; isCorrect: boolean; isSelected: boolean }>;
       isCorrect: boolean;
+      status: 'CORRECT' | 'WRONG' | 'UNANSWERED';
       explanation: string;
+      marksAwarded: number;
     }> = [];
 
     exam.questions.forEach((q: any) => {
+      const subj = q.subject || "General";
+      const top = q.topic || "General Concepts";
+
+      if (!subjectStats[subj]) subjectStats[subj] = { total: 0, correct: 0, wrong: 0, score: 0 };
+      if (!topicStats[top]) topicStats[top] = { subject: subj, total: 0, correct: 0, wrong: 0 };
+
+      subjectStats[subj].total += 1;
+      topicStats[top].total += 1;
+
       const selectedOptionId = answers[q.id] || null;
+      const selectedOption = q.options.find((o: any) => o.id === selectedOptionId);
       const correctOption = q.options.find((o: any) => o.isCorrect);
       const correctOptionId = correctOption ? correctOption.id : null;
+
+      const formattedOptions = q.options.map((opt: any) => ({
+        id: opt.id,
+        text: opt.text,
+        isCorrect: Boolean(opt.isCorrect),
+        isSelected: opt.id === selectedOptionId
+      }));
 
       if (!selectedOptionId) {
         unanswered++;
         detailedExplanations.push({
           questionId: q.id,
           questionText: q.text,
-          userOptionId: null,
+          subject: subj,
+          topic: top,
+          difficulty: q.difficulty || "MEDIUM",
+          marks: q.marks || 1,
+          negativeMarks: q.negativeMarks || 0,
+          studentOptionId: null,
+          studentOptionText: null,
           correctOptionId,
+          correctOptionText: correctOption ? correctOption.text : null,
+          options: formattedOptions,
           isCorrect: false,
-          explanation: q.explanation || "No answer recorded."
+          status: 'UNANSWERED',
+          explanation: q.explanation || "No answer recorded. Review the correct concept above.",
+          marksAwarded: 0
         });
       } else if (selectedOptionId === correctOptionId) {
         correct++;
         earnedMarks += q.marks;
+        subjectStats[subj].correct += 1;
+        subjectStats[subj].score += q.marks;
+        topicStats[top].correct += 1;
+
         detailedExplanations.push({
           questionId: q.id,
           questionText: q.text,
-          userOptionId: selectedOptionId,
+          subject: subj,
+          topic: top,
+          difficulty: q.difficulty || "MEDIUM",
+          marks: q.marks || 1,
+          negativeMarks: q.negativeMarks || 0,
+          studentOptionId: selectedOptionId,
+          studentOptionText: selectedOption ? selectedOption.text : null,
           correctOptionId,
+          correctOptionText: correctOption ? correctOption.text : null,
+          options: formattedOptions,
           isCorrect: true,
-          explanation: q.explanation || "Correct answer!"
+          status: 'CORRECT',
+          explanation: q.explanation || "Excellent! Correct solution identified.",
+          marksAwarded: q.marks
         });
       } else {
         incorrect++;
-        earnedMarks -= (q.negativeMarks || 0);
+        const neg = q.negativeMarks || 0;
+        earnedMarks -= neg;
+        subjectStats[subj].wrong += 1;
+        subjectStats[subj].score -= neg;
+        topicStats[top].wrong += 1;
+
         detailedExplanations.push({
           questionId: q.id,
           questionText: q.text,
-          userOptionId: selectedOptionId,
+          subject: subj,
+          topic: top,
+          difficulty: q.difficulty || "MEDIUM",
+          marks: q.marks || 1,
+          negativeMarks: q.negativeMarks || 0,
+          studentOptionId: selectedOptionId,
+          studentOptionText: selectedOption ? selectedOption.text : null,
           correctOptionId,
+          correctOptionText: correctOption ? correctOption.text : null,
+          options: formattedOptions,
           isCorrect: false,
-          explanation: q.explanation || "Incorrect selection."
+          status: 'WRONG',
+          explanation: q.explanation || "Incorrect choice. Review step-by-step formula above.",
+          marksAwarded: -neg
         });
       }
     });
@@ -371,7 +491,57 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
     const accuracy = totalAttempted > 0 ? Math.round((correct / totalAttempted) * 100) : 0;
     const finalScore = Math.max(0, Number(earnedMarks.toFixed(2)));
 
-    // Create Result Record
+    // Format Subject Performance
+    const subjectPerformance = Object.entries(subjectStats).map(([sName, sData]) => {
+      const sTotalAttempted = sData.correct + sData.wrong;
+      const sAcc = sTotalAttempted > 0 ? Math.round((sData.correct / sTotalAttempted) * 100) : 0;
+      return {
+        subject: sName,
+        total: sData.total,
+        correct: sData.correct,
+        wrong: sData.wrong,
+        score: Math.max(0, Number(sData.score.toFixed(2))),
+        accuracy: sAcc,
+        status: sAcc >= 75 ? "Strong" : sAcc >= 50 ? "Moderate" : "Needs Improvement"
+      };
+    });
+
+    // Format Topic Performance & Weak Topics
+    const topicPerformance = Object.entries(topicStats).map(([tName, tData]) => {
+      const tAttempted = tData.correct + tData.wrong;
+      const tAcc = tAttempted > 0 ? Math.round((tData.correct / tAttempted) * 100) : 0;
+      return {
+        topic: tName,
+        subject: tData.subject,
+        total: tData.total,
+        correct: tData.correct,
+        wrong: tData.wrong,
+        accuracy: tAcc,
+        level: tAcc >= 75 ? "Strong" : tAcc >= 50 ? "Average" : "Weak"
+      };
+    });
+
+    const weakTopics = topicPerformance
+      .filter(t => t.accuracy < 60 || t.wrong > 0)
+      .map(t => ({
+        topic: t.topic,
+        subject: t.subject,
+        accuracy: t.accuracy,
+        recommendation: `Practice 10-15 targeted drill questions in ${t.topic} to improve speed and eliminate recurring formula errors.`
+      }));
+
+    // Actionable improvement suggestions
+    const improvementSuggestions = [
+      accuracy < 70
+        ? "Focus on accuracy before speed. Avoid guessing on questions with negative marking penalties."
+        : "Great accuracy! Continue practicing timed mock drills to further reduce your time per question.",
+      weakTopics.length > 0
+        ? `Target high-yield revision in your priority weak areas: ${weakTopics.slice(0, 3).map(w => w.topic).join(', ')}.`
+        : "Balanced performance across all syllabus modules.",
+      `Review full step-by-step explanations for all ${incorrect} missed questions in the answer review mode.`
+    ];
+
+    // Create Persistent Result Record
     const newResult = await prisma.result.create({
       data: {
         userId,
@@ -385,35 +555,43 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
         analysis: JSON.stringify({
           unanswered,
           totalQuestions: exam.questions.length,
+          subjectPerformance,
+          topicPerformance,
+          weakTopics,
+          improvementSuggestions,
           explanations: detailedExplanations
         })
       }
     });
 
-    // Mark Attempt as SUBMITTED
+    // Mark Attempt as SUBMITTED in database to prevent re-submission
     await prisma.examAttempt.updateMany({
-      where: { userId, examId, status: 'IN_PROGRESS' },
-      data: { status: 'SUBMITTED' }
+      where: { userId, examId },
+      data: { 
+        status: 'SUBMITTED',
+        savedAnswersJson: JSON.stringify(answers || {}),
+        updatedAt: new Date()
+      }
     });
 
     // Log Activity
     await prisma.activityLog.create({
       data: {
         userId,
-        action: `Submitted CBT Exam "${exam.title}" with score ${finalScore}/${exam.totalMarks}`
+        action: `Submitted CBT Exam "${exam.title}" (Score: ${finalScore}/${exam.totalMarks}, Accuracy: ${accuracy}%)`
       }
     });
 
-    // Automatically generate and persist AI Performance Report
-    let aiReportData = null;
+    // Asynchronously generate AI report
     try {
-      aiReportData = await generateAiPerformanceReport(userId, newResult.id);
+      generateAiPerformanceReport(userId, newResult.id).catch(e => console.warn('AI report background warning:', e));
     } catch (aiErr) {
-      console.warn('⚠️ AI Performance Report generation warning:', aiErr);
+      console.warn('⚠️ AI Report trigger warning:', aiErr);
     }
 
     return res.status(201).json({
-      message: 'Exam submitted successfully',
+      success: true,
+      message: 'Exam submitted and graded successfully',
       resultId: newResult.id,
       score: finalScore,
       totalMarks: exam.totalMarks,
@@ -421,13 +599,64 @@ export const submitExamAttempt = async (req: AuthenticatedRequest, res: Response
       incorrect,
       unanswered,
       accuracy,
-      timeSpent: timeSpentSec,
-      explanations: detailedExplanations,
-      aiReport: aiReportData
+      timeSpent: timeSpentSec
     });
   } catch (error: any) {
     console.error('❌ Error submitting exam:', error);
     return res.status(500).json({ message: 'Failed to submit exam', error: error.message });
+  }
+};
+
+/**
+ * Get Question-by-Question Correct Answer Review (Step 3 in Flow)
+ * ONLY accessible AFTER exam submission by the authenticated candidate
+ */
+export const getExamReview = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const resultId = String(req.params.id || req.params.resultId || "");
+    const result = await prisma.result.findFirst({
+      where: { id: resultId, userId },
+      include: {
+        exam: {
+          select: { title: true, code: true, totalMarks: true, duration: true }
+        }
+      }
+    });
+
+    if (!result) {
+      return res.status(404).json({ message: 'Submitted exam review not found or unauthorized' });
+    }
+
+    let analysisObj: any = {};
+    try {
+      analysisObj = JSON.parse(result.analysis || '{}');
+    } catch (e) {
+      analysisObj = {};
+    }
+
+    return res.status(200).json({
+      review: {
+        resultId: result.id,
+        examTitle: result.exam ? result.exam.title : "Examination",
+        code: result.exam ? result.exam.code : "REX-EXAM",
+        score: result.score,
+        totalMarks: result.totalMarks,
+        correct: result.correct,
+        incorrect: result.incorrect,
+        unanswered: analysisObj.unanswered || 0,
+        totalQuestions: analysisObj.totalQuestions || 0,
+        accuracy: result.accuracy,
+        timeSpentSeconds: result.timeSpent,
+        date: result.createdAt,
+        questions: analysisObj.explanations || []
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching exam review:', error);
+    return res.status(500).json({ message: 'Failed to fetch exam review', error: error.message });
   }
 };
 
@@ -459,7 +688,7 @@ export const logProctoringEvent = async (req: AuthenticatedRequest, res: Respons
 };
 
 /**
- * Get Student Results History & Specific Result Detail
+ * Get Student Results History
  */
 export const getStudentResults = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -494,6 +723,9 @@ export const getStudentResults = async (req: AuthenticatedRequest, res: Response
   }
 };
 
+/**
+ * Get Comprehensive Final Mock Result (Step 4 in Flow)
+ */
 export const getResultById = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -504,10 +736,13 @@ export const getResultById = async (req: AuthenticatedRequest, res: Response) =>
       where: { id: resultId, userId },
       include: {
         exam: {
-          include: {
-            questions: {
-              include: { options: true }
-            }
+          select: {
+            id: true,
+            title: true,
+            code: true,
+            duration: true,
+            totalMarks: true,
+            passingMarks: true
           }
         }
       }
@@ -522,21 +757,36 @@ export const getResultById = async (req: AuthenticatedRequest, res: Response) =>
       analysisObj = {};
     }
 
+    const passingMarks = result.exam?.passingMarks || Math.round(result.totalMarks * 0.4);
+    const isPassed = result.score >= passingMarks;
+    const timeMins = Math.floor(result.timeSpent / 60);
+    const timeSecs = result.timeSpent % 60;
+
     return res.status(200).json({
       result: {
         id: result.id,
-        examTitle: result.exam ? result.exam.title : "Practice Test",
+        examId: result.examId,
+        examTitle: result.exam ? result.exam.title : "Mock Examination",
         code: result.exam ? result.exam.code : "PRACTICE",
+        duration: result.exam ? result.exam.duration : 30,
         score: result.score,
         totalMarks: result.totalMarks,
+        passingMarks,
+        status: isPassed ? "PASSED" : "FAILED",
+        performanceLevel: result.accuracy >= 75 ? "Strong / High" : result.accuracy >= 50 ? "Moderate" : "Needs Practice",
         correct: result.correct,
         incorrect: result.incorrect,
         unanswered: analysisObj.unanswered || 0,
+        totalQuestions: analysisObj.totalQuestions || (result.correct + result.incorrect + (analysisObj.unanswered || 0)),
         accuracy: result.accuracy,
         timeSpentSeconds: result.timeSpent,
+        timeSpentFormatted: `${timeMins}m ${timeSecs}s`,
         createdAt: result.createdAt,
-        explanations: analysisObj.explanations || [],
-        questions: result.exam ? result.exam.questions : []
+        subjectPerformance: analysisObj.subjectPerformance || [],
+        topicPerformance: analysisObj.topicPerformance || [],
+        weakTopics: analysisObj.weakTopics || [],
+        improvementSuggestions: analysisObj.improvementSuggestions || [],
+        explanations: analysisObj.explanations || []
       }
     });
   } catch (error: any) {

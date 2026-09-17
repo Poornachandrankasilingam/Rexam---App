@@ -366,46 +366,41 @@ export default function AiCoachPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12 text-slate-900">
-      {/* Header Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-black text-emerald-800 mb-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <Bot className="h-4 w-4 text-emerald-600" />
-            <span>AI Connected: {engineStatus.primaryModel}</span>
+    <div className="space-y-6 pb-12 text-slate-100 font-sans">
+      {/* Top Banner Header */}
+      <div className="glass p-6 sm:p-8 rounded-3xl border border-white/10 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
+        <div className="space-y-2 relative z-10">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 font-mono">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>24/7 AI Performance & Viva Coach</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black font-outfit text-slate-900 tracking-tight">
-            AI Coach & Real-Time Mocking Room
+          <h1 className="text-3xl font-extrabold tracking-tight font-outfit text-white">
+            Rexam AI Universal Performance Coach
           </h1>
-          <p className="text-slate-700 text-xs sm:text-sm font-medium mt-1">
-            Instant doubt solving, formula speed derivations, and live oral viva exam simulation.
+          <p className="text-slate-400 text-xs sm:text-sm font-medium">
+            Instant doubt solving, formula derivations, concept breakdowns, and live oral viva exam simulation.
           </p>
         </div>
 
         {/* Mode Switcher */}
-        <div className="flex items-center p-1.5 rounded-2xl bg-slate-100 border border-slate-200 self-stretch md:self-auto">
+        <div className="flex items-center p-1.5 rounded-2xl bg-secondary/80 border border-white/10 self-stretch md:self-auto shadow-lg relative z-10">
           <button
-            onClick={() => {
-              setMode("COACH")
-            }}
-            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            onClick={() => setMode("COACH")}
+            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
               mode === "COACH"
-                ? "bg-white text-emerald-700 shadow-sm border border-slate-200"
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold"
+                : "text-slate-400 hover:text-white"
             }`}
           >
             <Brain className="h-4 w-4" />
             <span>AI Coach Mode</span>
           </button>
           <button
-            onClick={() => {
-              setMode("MOCKING")
-            }}
-            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+            onClick={() => setMode("MOCKING")}
+            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
               mode === "MOCKING"
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30 font-extrabold"
+                : "text-slate-400 hover:text-white"
             }`}
           >
             <Zap className="h-4 w-4" />
@@ -414,71 +409,70 @@ export default function AiCoachPage() {
         </div>
       </div>
 
-      {/* Mocking Mode Configuration Card (When in MOCKING mode and not active) */}
+      {/* Mocking Mode Configuration Card */}
       {mode === "MOCKING" && !mockState.isActive && (
-        <div className="p-6 sm:p-8 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white shadow-sm space-y-6">
+        <div className="glass p-6 sm:p-8 rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 to-transparent shadow-2xl space-y-6">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30 font-bold">
+            <div className="h-10 w-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-lg font-bold">
               <Trophy className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 font-outfit">Configure Oral Mock Exam Drill</h3>
-              <p className="text-xs text-slate-600 font-semibold">The AI Examiner will interrogate you question-by-question and score your answers.</p>
+              <h3 className="text-base font-bold text-white font-outfit">Configure Oral Mock Exam Drill</h3>
+              <p className="text-xs text-slate-300">The AI Examiner will interrogate you question-by-question and evaluate your conceptual accuracy.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800 uppercase tracking-wider">Target Exam</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">Target Exam</label>
               <select
                 value={mockTargetExam}
                 onChange={(e) => setMockTargetExam(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500"
+                className="w-full p-3 rounded-2xl bg-secondary/70 border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
               >
+                <option value="Computer Science & Engineering">Computer Science & Engineering</option>
                 <option value="SSC CGL Tier 1/2">SSC CGL Tier 1/2</option>
                 <option value="IBPS / SBI PO & Clerk">IBPS / SBI PO & Clerk</option>
                 <option value="UPSC Civil Services CSE">UPSC Civil Services CSE</option>
                 <option value="Railways RRB NTPC">Railways RRB NTPC</option>
-                <option value="GATE / Core Engineering">GATE / Core Engineering</option>
-                <option value="CAT / Management">CAT / Management</option>
+                <option value="General Aptitude & Reasoning">General Aptitude & Reasoning</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800 uppercase tracking-wider">Subject / Module</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">Subject / Module</label>
               <select
                 value={mockSubject}
                 onChange={(e) => setMockSubject(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500"
+                className="w-full p-3 rounded-2xl bg-secondary/70 border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
               >
                 <option value="Quantitative Aptitude">Quantitative Aptitude</option>
                 <option value="Logical Reasoning">Logical Reasoning</option>
                 <option value="English & Verbal Ability">English & Verbal Ability</option>
+                <option value="Computer Architecture & OS">Computer Architecture & OS</option>
                 <option value="General Awareness & Polity">General Awareness & Polity</option>
-                <option value="Banking & Financial Awareness">Banking & Financial Awareness</option>
-                <option value="Indian Economy & Current Affairs">Indian Economy & Current Affairs</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800 uppercase tracking-wider">Difficulty Level</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">Difficulty Level</label>
               <select
                 value={mockDifficulty}
                 onChange={(e) => setMockDifficulty(e.target.value as any)}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500"
+                className="w-full p-3 rounded-2xl bg-secondary/70 border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
               >
-                <option value="EASY">Easy (Conceptual)</option>
+                <option value="EASY">Easy (Foundational)</option>
                 <option value="MEDIUM">Medium (Exam Standard)</option>
                 <option value="HARD">Hard (Advanced & Tricky)</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-800 uppercase tracking-wider">Questions Count</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">Questions Count</label>
               <select
                 value={mockTotalQuestions}
                 onChange={(e) => setMockTotalQuestions(Number(e.target.value))}
-                className="w-full p-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500"
+                className="w-full p-3 rounded-2xl bg-secondary/70 border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
               >
                 <option value={3}>3 Questions (Quick Sprint)</option>
                 <option value={5}>5 Questions (Standard Viva)</option>
@@ -490,7 +484,7 @@ export default function AiCoachPage() {
           <Button
             onClick={handleStartMockDrill}
             disabled={isLoading}
-            className="btn-3d-green w-full sm:w-auto rounded-xl px-8 py-3 font-bold text-white shadow-md shadow-emerald-600/25"
+            className="btn-3d-green w-full sm:w-auto rounded-2xl px-8 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/25"
           >
             {isLoading ? (
               <>
@@ -507,22 +501,22 @@ export default function AiCoachPage() {
         </div>
       )}
 
-      {/* Live Mock Scoreboard Banner (When Mock is Active) */}
+      {/* Live Mock Scoreboard Banner */}
       {mode === "MOCKING" && mockState.isActive && (
-        <div className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="glass p-4 sm:p-5 rounded-2xl border border-white/10 shadow-lg flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <span className="px-3 py-1 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-900 text-xs font-black">
+            <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">
               {mockState.targetExam} • {mockState.subject}
             </span>
-            <span className="text-xs font-bold text-slate-600">
+            <span className="text-xs font-semibold text-slate-400">
               Question {Math.min(mockState.currentQuestionIndex, mockState.totalQuestions)} of {mockState.totalQuestions}
             </span>
           </div>
 
           <div className="flex items-center space-x-6">
             <div className="text-right">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Score Tally</span>
-              <span className="text-lg font-black text-emerald-600 font-outfit">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block font-mono">Score Tally</span>
+              <span className="text-lg font-black text-emerald-400 font-mono">
                 {mockState.score} / {mockState.maxPossibleScore} pts
               </span>
             </div>
@@ -530,17 +524,17 @@ export default function AiCoachPage() {
               variant="outline"
               size="sm"
               onClick={handleResetSession}
-              className="rounded-xl text-xs font-bold border-slate-200 hover:bg-slate-50 text-slate-700"
+              className="rounded-xl text-xs font-bold border-white/10 hover:bg-white/10 text-slate-300"
             >
               <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              Reset
+              Reset Drill
             </Button>
           </div>
         </div>
       )}
 
       {/* Main Chat Workspace */}
-      <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-sm flex flex-col h-[580px]">
+      <div className="glass p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl flex flex-col h-[600px]">
         {/* Messages Stream */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
           {messages.map((msg) => {
@@ -554,8 +548,8 @@ export default function AiCoachPage() {
                 <div
                   className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0 shadow-sm ${
                     isUser
-                      ? "bg-slate-900 text-white"
-                      : "bg-emerald-600 text-white shadow-emerald-600/30"
+                      ? "bg-gradient-to-tr from-emerald-500 to-cyan-500 text-white"
+                      : "bg-purple-600 text-white shadow-purple-600/30"
                   }`}
                 >
                   {isUser ? user?.name?.charAt(0) || "U" : <Bot className="h-4 w-4" />}
@@ -563,10 +557,10 @@ export default function AiCoachPage() {
 
                 {/* Bubble Container */}
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] p-4 sm:p-5 rounded-2xl shadow-sm text-xs sm:text-sm leading-relaxed ${
+                  className={`max-w-[85%] sm:max-w-[75%] p-4 sm:p-5 rounded-2xl shadow-lg text-xs sm:text-sm leading-relaxed ${
                     isUser
-                      ? "bg-slate-900 text-white font-medium rounded-tr-none"
-                      : "bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-none space-y-2"
+                      ? "bg-emerald-600 text-white font-medium rounded-tr-none"
+                      : "bg-secondary/70 border border-white/10 text-slate-100 rounded-tl-none space-y-2"
                   }`}
                 >
                   {/* Markdown formatted content */}
@@ -576,23 +570,23 @@ export default function AiCoachPage() {
 
                   {/* Actions Bar for Assistant Replies */}
                   {!isUser && (
-                    <div className="pt-2 mt-2 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+                    <div className="pt-2 mt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
                       <span>{msg.timestamp}</span>
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => speakText(msg.content)}
-                          className="hover:text-emerald-700 transition-colors p-1 rounded hover:bg-slate-200"
+                          className="hover:text-emerald-400 transition-colors p-1 rounded hover:bg-white/10"
                           title="Read aloud"
                         >
                           {isSpeaking ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                         </button>
                         <button
                           onClick={() => copyToClipboard(msg.content, msg.id)}
-                          className="hover:text-emerald-700 transition-colors p-1 rounded hover:bg-slate-200"
+                          className="hover:text-emerald-400 transition-colors p-1 rounded hover:bg-white/10"
                           title="Copy response"
                         >
                           {copiedId === msg.id ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            <Check className="h-3.5 w-3.5 text-emerald-400" />
                           ) : (
                             <Copy className="h-3.5 w-3.5" />
                           )}
@@ -607,12 +601,12 @@ export default function AiCoachPage() {
 
           {isLoading && (
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black flex-shrink-0 shadow-sm">
+              <div className="h-8 w-8 rounded-xl bg-purple-600 text-white flex items-center justify-center text-xs font-black flex-shrink-0 shadow-sm">
                 <Bot className="h-4 w-4 animate-spin" />
               </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                <span>Rexam AI is thinking and formulating explanation...</span>
+              <div className="p-4 rounded-2xl bg-secondary/70 border border-white/10 text-xs font-semibold text-slate-300 flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                <span>Rexam AI is reasoning and formulating explanation...</span>
               </div>
             </div>
           )}
@@ -620,14 +614,14 @@ export default function AiCoachPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Preset Prompt Suggestions (When in Coach Mode and idle) */}
+        {/* Preset Prompt Suggestions */}
         {mode === "COACH" && messages.length <= 2 && (
-          <div className="pt-4 pb-2 border-t border-slate-100 flex items-center gap-2 overflow-x-auto custom-scrollbar">
+          <div className="pt-4 pb-2 border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar">
             {coachPrompts.map((p, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendCoachMessage(p)}
-                className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-[11px] font-bold transition-all flex-shrink-0"
+                className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-secondary/60 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/30 text-slate-300 hover:text-emerald-300 text-[11px] font-semibold transition-all flex-shrink-0"
               >
                 {p}
               </button>
@@ -636,7 +630,7 @@ export default function AiCoachPage() {
         )}
 
         {/* Input Bar */}
-        <div className="pt-4 border-t border-slate-200">
+        <div className="pt-4 border-t border-white/10">
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -651,10 +645,10 @@ export default function AiCoachPage() {
             <button
               type="button"
               onClick={toggleListening}
-              className={`p-3 rounded-2xl border transition-all ${
+              className={`p-3.5 rounded-2xl border transition-all ${
                 isListening
                   ? "bg-rose-500 text-white border-rose-600 animate-pulse"
-                  : "bg-slate-50 text-slate-600 border-slate-200 hover:text-emerald-600"
+                  : "bg-secondary/60 text-slate-400 border-white/10 hover:text-white"
               }`}
               title={isListening ? "Listening... click to stop" : "Voice input"}
             >
@@ -670,13 +664,13 @@ export default function AiCoachPage() {
                   ? "Type your answer to the examiner's question..."
                   : "Ask any doubt, question explanation, shortcut, or strategy..."
               }
-              className="flex-1 p-3.5 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner"
+              className="flex-1 p-3.5 rounded-2xl bg-secondary/60 border border-white/10 text-xs sm:text-sm font-medium text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-400"
             />
 
             <Button
               type="submit"
               disabled={!inputMessage.trim() || isLoading}
-              className="btn-3d-green rounded-2xl px-6 py-3.5 font-bold text-white shadow-md shadow-emerald-600/25 flex-shrink-0"
+              className="btn-3d-green rounded-2xl px-6 py-3.5 font-bold text-white shadow-md shadow-emerald-500/25 flex-shrink-0"
             >
               <Send className="h-4 w-4" />
             </Button>

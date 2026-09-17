@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Navbar } from "@/components/layout/Navbar"
-import { Mail, Phone, MapPin, Send, CheckCircle } from "lucide-react"
+import { Footer } from "@/components/layout/Footer"
+import { Mail, Phone, MapPin, Send, CheckCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function ContactPage() {
@@ -13,19 +14,23 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col font-sans">
       <Navbar />
 
-      <main className="flex-1 pt-28 pb-16 px-4 md:px-8 max-w-7xl mx-auto space-y-12 w-full">
+      <main className="flex-1 pt-32 pb-20 px-4 md:px-8 max-w-7xl mx-auto space-y-12 w-full">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <h1 className="text-4xl font-extrabold font-outfit text-white">Get in Touch with Rexam Team</h1>
-          <p className="text-slate-300 text-sm">Have questions about exam setup, AI proctoring, or institutional accounts? We are here to support you.</p>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 font-mono">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Customer Support & Assistance</span>
+          </div>
+          <h1 className="text-4xl font-extrabold font-outfit text-white">Get in Touch with Rexam AI</h1>
+          <p className="text-slate-300 text-sm">Have questions regarding examinations, institutional licenses, or AI proctoring? We are here to help.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Contact Details */}
           <div className="space-y-6">
-            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4">
+            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4 shadow-lg">
               <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 <Mail className="h-6 w-6" />
               </div>
@@ -36,18 +41,18 @@ export default function ContactPage() {
               </div>
             </div>
 
-            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4">
+            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4 shadow-lg">
               <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <Phone className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Helpline Number</h3>
+                <h3 className="font-bold text-white text-sm">Helpline Support</h3>
                 <p className="text-xs text-slate-400 mt-1">+91 1800-REXAM-AI</p>
                 <p className="text-xs text-slate-400">Mon - Sat (9:00 AM - 7:00 PM IST)</p>
               </div>
             </div>
 
-            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4">
+            <div className="glass p-6 rounded-3xl border border-white/10 flex items-start space-x-4 shadow-lg">
               <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                 <MapPin className="h-6 w-6" />
               </div>
@@ -60,79 +65,81 @@ export default function ContactPage() {
           </div>
 
           {/* Contact Form */}
-          <div className="lg:col-span-2 glass p-8 rounded-3xl border border-white/10 space-y-6">
-            <h2 className="text-xl font-bold font-outfit text-white">Send Us a Message</h2>
+          <div className="lg:col-span-2 glass p-8 rounded-3xl border border-white/10 shadow-xl space-y-6">
+            <h2 className="text-xl font-bold text-white font-outfit">Send Us a Direct Message</h2>
 
             {submitted ? (
-              <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-3">
+              <div className="p-8 text-center space-y-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-in fade-in">
                 <CheckCircle className="h-10 w-10 text-emerald-400 mx-auto" />
-                <h3 className="text-lg font-bold text-white">Message Sent Successfully!</h3>
-                <p className="text-xs text-slate-300">Thank you for reaching out. Our support team will get back to your email within 24 hours.</p>
-                <Button variant="outline" size="sm" onClick={() => setSubmitted(false)} className="rounded-full mt-2">
+                <h3 className="text-base font-bold text-white">Message Received!</h3>
+                <p className="text-xs text-slate-300">Thank you for reaching out. Our support team will get back to you within 24 hours.</p>
+                <Button onClick={() => setSubmitted(false)} variant="outline" className="rounded-xl text-xs mt-2">
                   Send Another Message
                 </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Your Full Name</label>
+                    <label className="text-xs font-bold text-slate-300">Your Name</label>
                     <input
                       type="text"
                       required
-                      placeholder="Poornachandran Kasilingam"
+                      placeholder="Rahul Sharma"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-400"
+                      className="w-full px-4 py-3 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400 font-medium"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Email Address</label>
+                    <label className="text-xs font-bold text-slate-300">Email Address</label>
                     <input
                       type="email"
                       required
-                      placeholder="student@example.com"
+                      placeholder="name@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-400"
+                      className="w-full px-4 py-3 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400 font-medium"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Subject</label>
+                  <label className="text-xs font-bold text-slate-300">Subject</label>
                   <input
                     type="text"
                     required
-                    placeholder="Exam code issue / Feature inquiry"
+                    placeholder="Institutional Licensing / Examination Inquiries"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-400"
+                    className="w-full px-4 py-3 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400 font-medium"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Message</label>
+                  <label className="text-xs font-bold text-slate-300">Your Message</label>
                   <textarea
                     rows={4}
                     required
-                    placeholder="Type your message here..."
+                    placeholder="Describe your inquiry or support request..."
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-white/10 text-white text-xs focus:outline-none focus:border-blue-400 resize-none"
+                    className="w-full px-4 py-3 bg-secondary/60 border border-white/10 rounded-2xl text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-emerald-400 font-medium resize-none"
                   />
                 </div>
 
-                <Button type="submit" size="lg" className="rounded-full px-8 font-bold bg-blue-600 hover:bg-blue-500">
+                <Button type="submit" className="btn-3d-green rounded-2xl px-8 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/25 text-xs">
                   <Send className="h-4 w-4 mr-2" />
-                  Submit Inquiry
+                  Send Message
                 </Button>
               </form>
             )}
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   )
 }

@@ -461,14 +461,37 @@ Ensure there are exactly 4 options per question, and exactly ONE option has "isC
       }
     ];
 
-    const aiResponse = await callLlmChat(messages, 'MOCKING');
-    const cleanedResponse = cleanAiOutput(aiResponse);
+    const aiResponse = await callLlmChat(messages, 0.4, true);
+    const cleanedResponse = cleanAiOutput(aiResponse)
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
     
-    // Attempt to extract JSON if there are code blocks despite instructions
-    const jsonMatch = cleanedResponse.match(/\[[\s\S]*\]/);
-    const jsonToParse = jsonMatch ? jsonMatch[0] : cleanedResponse;
-    
-    const parsed = JSON.parse(jsonToParse);
+    const sanitizeJsonStr = (str: string) => {
+      return str
+        .replace(/,\s*([\]}])/g, '$1') // Remove trailing commas
+        .replace(/[\u0000-\u001F]+/g, ' '); // Clean control characters
+    };
+
+    const jsonArrayMatch = cleanedResponse.match(/\[[\s\S]*\]/);
+    const jsonObjectMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+    let parsed: any;
+
+    try {
+      if (jsonArrayMatch) {
+        parsed = JSON.parse(sanitizeJsonStr(jsonArrayMatch[0]));
+      } else if (jsonObjectMatch) {
+        const obj = JSON.parse(sanitizeJsonStr(jsonObjectMatch[0]));
+        parsed = Array.isArray(obj) ? obj : obj.questions || obj.data || Object.values(obj)[0];
+      } else {
+        parsed = JSON.parse(sanitizeJsonStr(cleanedResponse));
+      }
+    } catch (parseErr) {
+      console.warn("Initial JSON parse failed, attempting relaxed repair...", parseErr);
+      if (jsonArrayMatch) {
+        parsed = JSON.parse(jsonArrayMatch[0].replace(/,\s*]/g, ']'));
+      }
+    }
     
     if (!Array.isArray(parsed)) {
       throw new Error("Response is not a JSON array");
@@ -476,7 +499,7 @@ Ensure there are exactly 4 options per question, and exactly ONE option has "isC
 
     const generatedQuestions: GeneratedAiQuestion[] = parsed.map((q: any, i: number) => ({
       id: `ai-q-${Date.now()}-${i + 1}`,
-      text: q.text || 'Missing text',
+      text: q.text || q.question || 'Missing text',
       subject,
       topic: topic || 'General',
       difficulty,
