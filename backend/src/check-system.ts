@@ -11,7 +11,7 @@ async function checkSystem() {
   console.log('1️⃣ Checking Database Connectivity...');
   try {
     await prisma.$connect();
-    console.log('   ✅ SQLite Database connected successfully via Prisma!\n');
+    console.log('   ✅ Supabase PostgreSQL Database connected successfully via Prisma!\n');
   } catch (err: any) {
     console.error('   ❌ Database connection failed:', err.message);
     process.exit(1);
