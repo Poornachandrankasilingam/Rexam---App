@@ -4,10 +4,16 @@
   "description": "Rexam - AI Powered Exam Management System",
   "author": "Poornachandran",
   "license": "MIT",
+  "type": "module",
   "main": "index.js",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "vercel-build": "npm run build --prefix backend && npm run build --prefix frontend",
     "start": "npm run preview --prefix frontend",
     "lint": "eslint",
     "test": "npm run test --prefix backend",

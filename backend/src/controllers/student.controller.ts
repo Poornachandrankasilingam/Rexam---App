@@ -851,35 +851,55 @@ export const saveStudentResult = async (req: AuthenticatedRequest, res: Response
  */
 export const generateAiMockTest = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { category = "SSC CGL", subject = "General Awareness", difficulty = "MEDIUM", count = 10 } = req.body;
-    const numQuestions = Math.min(100, Math.max(5, Number(count || 10)));
+    const { 
+      category = "SSC CGL", 
+      subject = "Quantitative Aptitude", 
+      difficulty = "MEDIUM", 
+      count = 10,
+      language = "English",
+      provider = "auto"
+    } = req.body;
+    const numQuestions = Math.min(25, Math.max(2, Number(count || 5)));
 
-    const questions = Array.from({ length: numQuestions }, (_, i) => ({
-      id: `ai-q-${i + 1}`,
-      text: `[${category} - ${subject}] Question ${i + 1}: Which of the following statements is true regarding ${subject} topic #${i + 1}?`,
+    const { generateAiQuestions } = await import('../services/aiQuestionGeneratorService.js');
+    const realQuestions = await generateAiQuestions({
       subject,
-      difficulty,
-      marks: 1,
-      negativeMarks: 0.25,
-      explanation: `Solution for Question ${i + 1}: Concept based on ${category} syllabus for ${subject}.`,
-      options: [
-        { id: `opt-${i}-a`, text: `Concept Option A for Q${i + 1}`, isCorrect: true },
-        { id: `opt-${i}-b`, text: `Concept Option B for Q${i + 1}`, isCorrect: false },
-        { id: `opt-${i}-c`, text: `Concept Option C for Q${i + 1}`, isCorrect: false },
-        { id: `opt-${i}-d`, text: `Concept Option D for Q${i + 1}`, isCorrect: false }
-      ]
+      topic: category,
+      difficulty: difficulty === "HARD" ? "HARD" : difficulty === "EASY" ? "EASY" : "MEDIUM",
+      count: numQuestions,
+      language,
+      provider
+    });
+
+    const questions = realQuestions.map((q, i) => ({
+      id: q.id || `ai-q-${i + 1}`,
+      text: q.text,
+      subject: q.subject || subject,
+      difficulty: q.difficulty || difficulty,
+      marks: q.marks || 1,
+      negativeMarks: q.negativeMarks || 0.25,
+      explanation: q.explanation,
+      options: q.options.map((opt, optIdx) => ({
+        id: `opt-${i}-${optIdx}`,
+        text: opt.text,
+        isCorrect: opt.isCorrect
+      })),
+      provider: q.provider
     }));
+
+    const primaryEngine = realQuestions[0]?.provider || 'AI Engine';
 
     return res.status(200).json({
       mockTest: {
         title: `AI Mock Test: ${category} (${subject})`,
-        description: `${numQuestions} AI generated questions covering ${subject} at ${difficulty} level.`,
+        description: `${questions.length} verified AI generated questions covering ${subject} (${primaryEngine})`,
         category,
         subject,
         difficulty,
-        duration: Math.ceil(numQuestions * 1.5),
-        totalMarks: numQuestions,
-        questions
+        duration: Math.ceil(questions.length * 1.5),
+        totalMarks: questions.length,
+        questions,
+        provider: primaryEngine
       }
     });
   } catch (error: any) {

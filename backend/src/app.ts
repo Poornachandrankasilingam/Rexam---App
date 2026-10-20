@@ -62,6 +62,43 @@ app.use('/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminRoutes);
 
+// Public AI Question Generation Endpoint (used by landing page live preview & instant demo)
+app.post(['/api/public/ai-generate', '/public/ai-generate'], async (req: Request, res: Response) => {
+  try {
+    const {
+      subject = "Quantitative Aptitude",
+      topic,
+      difficulty = "MEDIUM",
+      count = 1,
+      language = "English",
+      provider = "auto"
+    } = req.body;
+
+    const { generateAiQuestions } = await import('./services/aiQuestionGeneratorService.js');
+    const questions = await generateAiQuestions({
+      subject,
+      topic,
+      difficulty,
+      count: Math.min(5, Math.max(1, Number(count) || 1)),
+      language,
+      provider
+    });
+
+    const primaryEngine = questions[0]?.provider || 'AI Engine';
+
+    return res.status(200).json({
+      success: true,
+      questions,
+      count: questions.length,
+      provider: primaryEngine,
+      message: `Generated ${questions.length} questions using ${primaryEngine}`
+    });
+  } catch (err: any) {
+    console.error('❌ Public AI Generation Error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Generation failed' });
+  }
+});
+
 // Health check and root API endpoints
 app.get(['/health', '/api/health'], (req: Request, res: Response) => {
   res.status(200).json({

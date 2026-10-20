@@ -6,7 +6,7 @@
  * 2. Logical Reasoning (Analytical, Deductive, & Structural)
  * 3. Verbal Ability & Reasoning (English / Multilingual Grammar & Vocab)
  */
-import { callLlmChat, cleanAiOutput, type ChatMessageItem } from './aiChatService.js';
+import { callLlmChatWithProvider, cleanAiOutput, type ChatMessageItem } from './aiChatService.js';
 
 export interface GeneratedQuestionOption {
   text: string;
@@ -24,6 +24,7 @@ export interface GeneratedAiQuestion {
   explanation: string;
   options: GeneratedQuestionOption[];
   language: string;
+  provider?: string;
 }
 
 export interface GenerateAiQuestionsParams {
@@ -32,6 +33,7 @@ export interface GenerateAiQuestionsParams {
   difficulty?: "EASY" | "MEDIUM" | "HARD";
   count?: number;
   language?: string; // 'English' | 'Hindi' | 'Tamil' | 'Bilingual'
+  provider?: 'gemini' | 'nvidia' | 'groq' | 'openai' | 'auto';
 }
 
 type QuestionTemplate = {
@@ -418,6 +420,77 @@ const HINDI_TEMPLATES: QuestionTemplate[] = [
 ];
 
 /**
+ * Resilient JSON array extractor for questions
+ */
+function extractJsonQuestions(rawText: string): any[] {
+  if (!rawText) return [];
+  const text = cleanAiOutput(rawText)
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  // 1. Direct parse attempt
+  try {
+    const direct = JSON.parse(text);
+    if (Array.isArray(direct)) return direct;
+    if (direct && typeof direct === 'object') {
+      const arr = Array.isArray(direct.questions) ? direct.questions
+                : Array.isArray(direct.data) ? direct.data
+                : Object.values(direct).find(v => Array.isArray(v));
+      if (arr) return arr as any[];
+    }
+  } catch (_) {}
+
+  // 2. Extract substring between first '[' and last ']'
+  const startIdx = text.indexOf('[');
+  const endIdx = text.lastIndexOf(']');
+  if (startIdx !== -1 && endIdx > startIdx) {
+    const substr = text.substring(startIdx, endIdx + 1);
+    try {
+      const parsed = JSON.parse(substr);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (_) {
+      // Relaxed repair: remove trailing commas before ] or }
+      try {
+        const cleaned = substr.replace(/,\s*([\]}])/g, '$1');
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (_) {}
+    }
+  }
+
+  // 3. Extract substring between first '{' and last '}' if model returned a single question object or wrapped object
+  const startObj = text.indexOf('{');
+  const endObj = text.lastIndexOf('}');
+  if (startObj !== -1 && endObj > startObj) {
+    const objSub = text.substring(startObj, endObj + 1);
+    try {
+      const parsed = JSON.parse(objSub.replace(/,\s*([\]}])/g, '$1'));
+      if (parsed && Array.isArray(parsed.questions)) return parsed.questions;
+      if (parsed && (parsed.text || parsed.question) && Array.isArray(parsed.options)) return [parsed];
+    } catch (_) {}
+  }
+
+  // 4. Regex fallback: match individual question objects { "text": ... }
+  const regex = /\{[\s\S]*?"(?:text|question)"\s*:[\s\S]*?"options"\s*:\s*\[[\s\S]*?\][\s\S]*?\}/g;
+  const matches = text.match(regex);
+  if (matches && matches.length > 0) {
+    const collected: any[] = [];
+    for (const m of matches) {
+      try {
+        const item = JSON.parse(m.replace(/,\s*([\]}])/g, '$1'));
+        if ((item.text || item.question) && Array.isArray(item.options)) {
+          collected.push(item);
+        }
+      } catch (_) {}
+    }
+    if (collected.length > 0) return collected;
+  }
+
+  return [];
+}
+
+/**
  * Main Generator Function
  */
 export async function generateAiQuestions(params: GenerateAiQuestionsParams): Promise<GeneratedAiQuestion[]> {
@@ -426,34 +499,42 @@ export async function generateAiQuestions(params: GenerateAiQuestionsParams): Pr
     topic,
     difficulty = "MEDIUM",
     count = 10,
-    language = "English"
+    language = "English",
+    provider = "auto"
   } = params;
 
   const requestedCount = Math.max(1, Math.min(count, 50));
 
   try {
-    const prompt = `You are an expert exam question creator. Generate ${requestedCount} high-quality questions for the subject "${subject}"${topic ? ` and topic "${topic}"` : ''} at a ${difficulty} difficulty level in ${language}.
-    
-You must return your response EXCLUSIVELY as a valid JSON array of objects. Do not include any markdown formatting, code blocks, or text outside of the JSON array.
+    const prompt = `You are an expert exam question creator for competitive exams.
+Generate ${requestedCount} high-quality questions for subject "${subject}"${topic ? ` and topic "${topic}"` : ''} at ${difficulty} difficulty level in ${language}.
 
-Each object in the array must have the following structure:
-{
-  "text": "The question text",
-  "explanation": "A clear step-by-step explanation of the answer",
-  "options": [
-    { "text": "Option 1", "isCorrect": true },
-    { "text": "Option 2", "isCorrect": false },
-    { "text": "Option 3", "isCorrect": false },
-    { "text": "Option 4", "isCorrect": false }
-  ]
-}
+You MUST return your response EXCLUSIVELY as a valid JSON array of objects.
+Do not output markdown code blocks, backticks, or any conversational text.
 
-Ensure there are exactly 4 options per question, and exactly ONE option has "isCorrect": true.`;
+Format:
+[
+  {
+    "text": "Clear question stem here",
+    "explanation": "Step-by-step conceptual or mathematical solution",
+    "options": [
+      { "text": "Option A text", "isCorrect": true },
+      { "text": "Option B text", "isCorrect": false },
+      { "text": "Option C text", "isCorrect": false },
+      { "text": "Option D text", "isCorrect": false }
+    ]
+  }
+]
+
+Requirements:
+- Exactly 4 options per question.
+- Exactly ONE option with isCorrect: true.
+- Accurate mathematics, formulas, and verified solutions.`;
 
     const messages: ChatMessageItem[] = [
       {
         role: 'system',
-        content: 'You are an AI Question Generator that strictly outputs valid JSON.'
+        content: 'You are an AI Question Generator that strictly outputs valid JSON array of questions.'
       },
       {
         role: 'user',
@@ -461,64 +542,61 @@ Ensure there are exactly 4 options per question, and exactly ONE option has "isC
       }
     ];
 
-    const aiResponse = await callLlmChat(messages, 0.4, true);
-    const cleanedResponse = cleanAiOutput(aiResponse)
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
-    
-    const sanitizeJsonStr = (str: string) => {
-      return str
-        .replace(/,\s*([\]}])/g, '$1') // Remove trailing commas
-        .replace(/[\u0000-\u001F]+/g, ' '); // Clean control characters
-    };
+    const llmResult = await callLlmChatWithProvider(messages, {
+      temperature: 0.25,
+      jsonMode: true,
+      preferredProvider: provider,
+      maxTokens: Math.max(1600, requestedCount * 400)
+    });
 
-    const jsonArrayMatch = cleanedResponse.match(/\[[\s\S]*\]/);
-    const jsonObjectMatch = cleanedResponse.match(/\{[\s\S]*\}/);
-    let parsed: any;
+    const parsedArray = extractJsonQuestions(llmResult.content);
 
-    try {
-      if (jsonArrayMatch) {
-        parsed = JSON.parse(sanitizeJsonStr(jsonArrayMatch[0]));
-      } else if (jsonObjectMatch) {
-        const obj = JSON.parse(sanitizeJsonStr(jsonObjectMatch[0]));
-        parsed = Array.isArray(obj) ? obj : obj.questions || obj.data || Object.values(obj)[0];
-      } else {
-        parsed = JSON.parse(sanitizeJsonStr(cleanedResponse));
+    if (parsedArray.length > 0) {
+      const generatedQuestions: GeneratedAiQuestion[] = parsedArray.map((q: any, i: number) => {
+        // Standardize options
+        let opts: GeneratedQuestionOption[] = [];
+        if (Array.isArray(q.options)) {
+          opts = q.options.map((o: any) => {
+            if (typeof o === 'string') {
+              const isMatch = q.answer && (o.toLowerCase() === String(q.answer).toLowerCase() || o.startsWith(String(q.answer)));
+              return { text: o, isCorrect: Boolean(isMatch) };
+            }
+            return {
+              text: String(o.text || o.option || o.title || 'Option'),
+              isCorrect: Boolean(o.isCorrect ?? o.correct)
+            };
+          });
+        }
+
+        // Ensure at least 1 correct option
+        if (!opts.some(o => o.isCorrect) && opts.length > 0) {
+          opts[0].isCorrect = true;
+        }
+
+        return {
+          id: `ai-q-${Date.now()}-${i + 1}`,
+          text: q.text || q.question || 'Question statement',
+          subject,
+          topic: topic || 'General',
+          difficulty,
+          marks: 2,
+          negativeMarks: 0.5,
+          explanation: q.explanation || q.solution || 'Detailed step-by-step verified solution.',
+          options: opts,
+          language,
+          provider: `${llmResult.provider} (${llmResult.model})`
+        };
+      });
+
+      const validList = generatedQuestions.filter(q => q.options.length >= 2);
+      if (validList.length > 0) {
+        return validList.slice(0, requestedCount);
       }
-    } catch (parseErr) {
-      console.warn("Initial JSON parse failed, attempting relaxed repair...", parseErr);
-      if (jsonArrayMatch) {
-        parsed = JSON.parse(jsonArrayMatch[0].replace(/,\s*]/g, ']'));
-      }
-    }
-    
-    if (!Array.isArray(parsed)) {
-      throw new Error("Response is not a JSON array");
     }
 
-    const generatedQuestions: GeneratedAiQuestion[] = parsed.map((q: any, i: number) => ({
-      id: `ai-q-${Date.now()}-${i + 1}`,
-      text: q.text || q.question || 'Missing text',
-      subject,
-      topic: topic || 'General',
-      difficulty,
-      marks: 2,
-      negativeMarks: 0.5,
-      explanation: q.explanation || 'No explanation provided.',
-      options: q.options || [],
-      language
-    }));
-
-    // Basic validation
-    if (generatedQuestions.length > 0 && generatedQuestions[0].options.length >= 2) {
-      return generatedQuestions.slice(0, requestedCount);
-    }
-    
-    throw new Error("Parsed questions failed validation");
-
-  } catch (error) {
-    console.error("AI Question Generation failed, falling back to templates:", error);
+    throw new Error(`LLM output could not be parsed into questions array from ${llmResult.provider}`);
+  } catch (error: any) {
+    console.warn("AI Question Generation primary LLM attempt failed, falling back to templates:", error.message || error);
     // Fallback logic
     let pool: QuestionTemplate[] = [];
 
@@ -569,7 +647,8 @@ Ensure there are exactly 4 options per question, and exactly ONE option has "isC
         negativeMarks: 0.5,
         explanation: generated.explanation,
         options: generated.options,
-        language: template.language
+        language: template.language,
+        provider: 'Offline Educational Engine'
       });
     }
 

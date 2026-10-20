@@ -145,6 +145,7 @@ export default function AdminQuestionsPage() {
   const [aiDifficulty, setAiDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM")
   const [aiCount, setAiCount] = useState(5)
   const [aiLanguage, setAiLanguage] = useState("English")
+  const [aiProvider, setAiProvider] = useState<"auto" | "gemini" | "nvidia">("auto")
   const [isAiGenerating, setIsAiGenerating] = useState(false)
 
   // OCR Modal States
@@ -187,10 +188,12 @@ export default function AdminQuestionsPage() {
         topic: aiTopic === "ALL" ? undefined : aiTopic,
         difficulty: aiDifficulty,
         count: aiCount,
-        language: aiLanguage
-      })
+        language: aiLanguage,
+        provider: aiProvider
+      }, { timeout: 60000 })
 
       if (res.data?.questions && res.data.questions.length > 0) {
+        const engineLabel = res.data.provider || "Rexam AI Engine"
         const generated: QuestionItem[] = res.data.questions.map((q: any, idx: number) => {
           const correctIdx = q.options.findIndex((o: any) => o.isCorrect)
           return {
@@ -461,6 +464,23 @@ export default function AdminQuestionsPage() {
             </div>
 
             <form onSubmit={handleGenerateAi} className="space-y-4 text-xs font-semibold">
+              {/* AI Engine Provider Selection */}
+              <div className="space-y-1">
+                <label className="text-muted-foreground flex items-center justify-between">
+                  <span>AI Engine Provider</span>
+                  <span className="text-[10px] text-indigo-400 font-mono">Gemini & NVIDIA NIM</span>
+                </label>
+                <select
+                  value={aiProvider}
+                  onChange={(e) => setAiProvider(e.target.value as any)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-secondary/50 border border-border/80 text-xs focus:outline-none focus:border-indigo-400 font-bold"
+                >
+                  <option value="auto">Auto Cascade (Google Gemini 3.8 + NVIDIA NIM)</option>
+                  <option value="gemini">Google Gemini 3.8 / 3.6 Flash (Primary Engine)</option>
+                  <option value="nvidia">NVIDIA NIM (meta/llama-3.2-11b-vision-instruct)</option>
+                </select>
+              </div>
+
               {/* Subject */}
               <div className="space-y-1">
                 <label className="text-muted-foreground">Subject Area</label>

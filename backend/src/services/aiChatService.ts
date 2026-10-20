@@ -57,108 +57,199 @@ async function fetchWithTimeout(url: string, options: any, timeoutMs = 9000): Pr
   }
 }
 
+export type AiProviderPreference = 'gemini' | 'nvidia' | 'groq' | 'openai' | 'auto';
+
+export interface LlmChatOptions {
+  temperature?: number;
+  jsonMode?: boolean;
+  preferredProvider?: AiProviderPreference;
+  maxTokens?: number;
+  timeoutMs?: number;
+}
+
+export interface LlmChatResult {
+  content: string;
+  provider: string;
+  model: string;
+}
+
 /**
  * Get current active AI provider integration status
  */
 export function getAiProviderStatus() {
   const geminiKey = Boolean(process.env.GEMINI_API_KEY);
-  const groqKey = Boolean(process.env.GROQ_API_KEY);
   const nvidiaKey = Boolean(process.env.NVIDIA_API_KEY);
+  const groqKey = Boolean(process.env.GROQ_API_KEY);
   const openaiKey = Boolean(process.env.OPENAI_API_KEY);
 
   const activeProviders: string[] = [];
-  if (geminiKey) activeProviders.push('Google Gemini 3.6 Flash (Primary AI Engine)');
-  if (groqKey) activeProviders.push('Groq High-Speed Cloud (Fallback)');
-  if (nvidiaKey) activeProviders.push('NVIDIA NIM (Fallback)');
-  if (openaiKey) activeProviders.push('OpenAI GPT-4o (Fallback)');
+  if (geminiKey) activeProviders.push('Google Gemini 3.8 / 3.6 Flash');
+  if (nvidiaKey) activeProviders.push('NVIDIA NIM Neural (Llama 3.2)');
+  if (groqKey) activeProviders.push('Groq Cloud (GPT-OSS / Qwen 3.8)');
+  if (openaiKey) activeProviders.push('OpenAI GPT-4o');
 
   return {
     connected: activeProviders.length > 0,
     activeProviders,
-    primaryModel: geminiKey ? 'Google Gemini 3.6 Flash' : groqKey ? 'Groq Qwen 3.6' : 'Offline Educational Engine',
+    primaryModel: geminiKey 
+      ? 'Google Gemini 3.8 Flash' 
+      : nvidiaKey 
+        ? 'NVIDIA NIM (Llama 3.2 11B)' 
+        : groqKey 
+          ? 'Groq Qwen 3.8' 
+          : 'Offline Educational Engine',
     totalProvidersConfigured: activeProviders.length
   };
 }
 
 /**
- * Multi-LLM Caller with automatic cascade fallback:
- * 1. Google Gemini API (gemini-3.6-flash) [PRIMARY via GEMINI_API_KEY]
- * 2. Groq Cloud (qwen/qwen3.6-27b / openai/gpt-oss-20b)
- * 3. OpenAI (GPT-4o-mini)
- * 4. NVIDIA NIM (DeepSeek / Jamba)
- * 5. High-Precision Offline Educational Heuristic Engine
+ * Multi-LLM Caller with automatic cascade fallback and provider preference support:
+ * - Google Gemini API (gemini-3.8-flash, gemini-3.6-flash)
+ * - NVIDIA NIM (meta/llama-3.2-11b-vision-instruct, meta/llama-3.2-90b-vision-instruct)
+ * - Groq Cloud (openai/gpt-oss-120b, qwen/qwen3.8-27b)
+ * - OpenAI (gpt-4o-mini)
+ * - High-Precision Offline Educational Heuristic Engine
  */
-export async function callLlmChat(messages: ChatMessageItem[], temperature = 0.7, jsonMode = false): Promise<string> {
+export async function callLlmChatWithProvider(
+  messages: ChatMessageItem[],
+  optionsOrTemp: number | LlmChatOptions = 0.7,
+  jsonModeFlag = false
+): Promise<LlmChatResult> {
+  const opts: LlmChatOptions = typeof optionsOrTemp === 'number'
+    ? { temperature: optionsOrTemp, jsonMode: jsonModeFlag }
+    : optionsOrTemp;
+
+  const temperature = opts.temperature ?? 0.7;
+  const jsonMode = Boolean(opts.jsonMode);
+  const preferred = opts.preferredProvider || 'auto';
+  const maxTokens = opts.maxTokens || 2048;
+
   const geminiKey = process.env.GEMINI_API_KEY;
+  const nvidiaKey = process.env.NVIDIA_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
-  const nvidiaKey = process.env.NVIDIA_API_KEY;
 
-  // 1. PRIMARY: Google Gemini API (gemini-3.6-flash)
-  if (geminiKey) {
-    try {
-      const systemInstruction = messages.find(m => m.role === 'system')?.content || '';
-      const userAndAssistantMsgs = messages.filter(m => m.role !== 'system');
+  // Helper runners for each provider
+  const runGemini = async (): Promise<LlmChatResult | null> => {
+    if (!geminiKey) return null;
+    const models = ['gemini-3.6-flash', 'gemini-3.8-flash'];
+    const systemInstruction = messages.find(m => m.role === 'system')?.content || '';
+    const userAndAssistantMsgs = messages.filter(m => m.role !== 'system');
+    const contents = userAndAssistantMsgs.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    const payloadContents = contents.length > 0 
+      ? contents 
+      : [{ role: 'user', parts: [{ text: systemInstruction || 'Provide response.' }] }];
 
-      const contents = userAndAssistantMsgs.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }));
-
-      // If only system message was provided or contents is empty, build single user prompt
-      const payloadContents = contents.length > 0 
-        ? contents 
-        : [{ role: 'user', parts: [{ text: systemInstruction || 'Provide response.' }] }];
-
-      const generationConfig: any = {
-        temperature,
-        maxOutputTokens: 2048
-      };
-
-      if (jsonMode) {
-        generationConfig.responseMimeType = "application/json";
-      }
-
-      const requestBody: any = {
-        contents: payloadContents,
-        generationConfig
-      };
-
-      if (systemInstruction && contents.length > 0) {
-        requestBody.system_instruction = {
-          parts: [{ text: systemInstruction }]
-        };
-      }
-
-      const response = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        },
-        18000
-      );
-
-      if (response.ok) {
-        const data = await response.json() as any;
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const reply = cleanAiOutput(rawText);
-        if (reply && reply.trim().length > 0) {
-          return reply;
-        }
-      } else {
-        const errJson = await response.json().catch(() => ({}));
-        console.warn(`Gemini 3.6 Flash returned status ${response.status}, cascading to fallback providers...`, errJson);
-      }
-    } catch (e: any) {
-      console.warn('Gemini 3.6 Flash call failed, cascading to fallback providers...', e.message);
+    const generationConfig: any = {
+      temperature,
+      maxOutputTokens: maxTokens
+    };
+    if (jsonMode) {
+      generationConfig.responseMimeType = "application/json";
     }
-  }
 
-  // 2. FALLBACK 1: Groq Cloud (Sub-second low latency inference: qwen/qwen3.6-27b or openai/gpt-oss-20b)
-  if (groqKey) {
-    const groqModels = ['qwen/qwen3.6-27b', 'openai/gpt-oss-20b'];
+    const requestBody: any = {
+      contents: payloadContents,
+      generationConfig
+    };
+    if (systemInstruction && contents.length > 0) {
+      requestBody.system_instruction = { parts: [{ text: systemInstruction }] };
+    }
+
+    for (const m of models) {
+      try {
+        const response = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          },
+          opts.timeoutMs || 40000
+        );
+
+        if (response.ok) {
+          const data = await response.json() as any;
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const reply = cleanAiOutput(rawText);
+          if (reply && reply.trim().length > 0) {
+            return {
+              content: reply,
+              provider: 'Google Gemini',
+              model: m
+            };
+          }
+        } else {
+          console.warn(`Gemini (${m}) returned status ${response.status}`);
+        }
+      } catch (e: any) {
+        console.warn(`Gemini (${m}) call error:`, e.message);
+      }
+    }
+    return null;
+  };
+
+  const runNvidia = async (): Promise<LlmChatResult | null> => {
+    if (!nvidiaKey) return null;
+    const nvidiaModels = [
+      'meta/llama-3.2-11b-vision-instruct',
+      'meta/llama-3.2-90b-vision-instruct'
+    ];
+
+    const sysMsg = jsonMode 
+      ? 'You must respond ONLY with valid, parseable JSON. Do not include markdown code ticks or any extra commentary.'
+      : undefined;
+
+    const chatMsgs = sysMsg
+      ? [{ role: 'system', content: sysMsg }, ...messages.map(m => ({ role: m.role, content: m.content }))]
+      : messages.map(m => ({ role: m.role, content: m.content }));
+
+    for (const model of nvidiaModels) {
+      try {
+        const response = await fetchWithTimeout(
+          'https://integrate.api.nvidia.com/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${nvidiaKey}`
+            },
+            body: JSON.stringify({
+              model,
+              messages: chatMsgs,
+              temperature,
+              max_tokens: maxTokens
+            })
+          },
+          opts.timeoutMs || 50000
+        );
+
+        if (response.ok) {
+          const data = await response.json() as any;
+          const reply = cleanAiOutput(data?.choices?.[0]?.message?.content || '');
+          if (reply && reply.trim().length > 0) {
+            return {
+              content: reply,
+              provider: 'NVIDIA NIM',
+              model
+            };
+          }
+        } else {
+          console.warn(`NVIDIA NIM (${model}) status ${response.status}`);
+        }
+      } catch (e: any) {
+        console.warn(`NVIDIA NIM (${model}) error:`, e.message);
+      }
+    }
+    return null;
+  };
+
+  const runGroq = async (): Promise<LlmChatResult | null> => {
+    if (!groqKey) return null;
+    const groqModels = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
     for (const model of groqModels) {
       try {
         const response = await fetchWithTimeout(
@@ -173,10 +264,10 @@ export async function callLlmChat(messages: ChatMessageItem[], temperature = 0.7
               model,
               messages: messages.map(m => ({ role: m.role, content: m.content })),
               temperature,
-              max_tokens: 2048
+              max_tokens: maxTokens
             })
           },
-          7000
+          8000
         );
 
         if (response.ok) {
@@ -184,17 +275,22 @@ export async function callLlmChat(messages: ChatMessageItem[], temperature = 0.7
           const rawContent = data?.choices?.[0]?.message?.content || '';
           const reply = cleanAiOutput(rawContent);
           if (reply && reply.trim().length > 0) {
-            return reply;
+            return {
+              content: reply,
+              provider: 'Groq Cloud',
+              model
+            };
           }
         }
       } catch (e: any) {
-        console.warn(`Groq (${model}) call failed, cascading...`, e.message);
+        console.warn(`Groq (${model}) error:`, e.message);
       }
     }
-  }
+    return null;
+  };
 
-  // 3. FALLBACK 2: OpenAI (GPT-4o-mini)
-  if (openaiKey) {
+  const runOpenAi = async (): Promise<LlmChatResult | null> => {
+    if (!openaiKey) return null;
     try {
       const response = await fetchWithTimeout(
         'https://api.openai.com/v1/chat/completions',
@@ -208,7 +304,7 @@ export async function callLlmChat(messages: ChatMessageItem[], temperature = 0.7
             model: 'gpt-4o-mini',
             messages: messages.map(m => ({ role: m.role, content: m.content })),
             temperature,
-            max_tokens: 2048
+            max_tokens: maxTokens
           })
         },
         9000
@@ -217,53 +313,57 @@ export async function callLlmChat(messages: ChatMessageItem[], temperature = 0.7
       if (response.ok) {
         const data = await response.json() as any;
         const reply = cleanAiOutput(data?.choices?.[0]?.message?.content || '');
-        if (reply) return reply;
+        if (reply) {
+          return {
+            content: reply,
+            provider: 'OpenAI',
+            model: 'gpt-4o-mini'
+          };
+        }
       }
     } catch (e: any) {
-      console.warn('OpenAI call failed, cascading...', e.message);
+      console.warn('OpenAI error:', e.message);
     }
+    return null;
+  };
+
+  // Determine provider trial order based on preference
+  const providerRunners: Array<() => Promise<LlmChatResult | null>> = [];
+  if (preferred === 'nvidia') {
+    providerRunners.push(runNvidia, runGemini, runGroq, runOpenAi);
+  } else if (preferred === 'gemini') {
+    providerRunners.push(runGemini, runNvidia, runGroq, runOpenAi);
+  } else if (preferred === 'groq') {
+    providerRunners.push(runGroq, runGemini, runNvidia, runOpenAi);
+  } else {
+    // 'auto' cascade: Gemini -> NVIDIA -> Groq -> OpenAI
+    providerRunners.push(runGemini, runNvidia, runGroq, runOpenAi);
   }
 
-  // 4. FALLBACK 3: NVIDIA NIM
-  if (nvidiaKey) {
-    const nvidiaModels = ['deepseek-ai/deepseek-v4-flash-0731', 'ai21labs/jamba-1.5-large-instruct'];
-    for (const model of nvidiaModels) {
-      try {
-        const response = await fetchWithTimeout(
-          'https://integrate.api.nvidia.com/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${nvidiaKey}`
-            },
-            body: JSON.stringify({
-              model,
-              messages: messages.map(m => ({ role: m.role, content: m.content })),
-              temperature,
-              max_tokens: 1500
-            })
-          },
-          8000
-        );
-
-        if (response.ok) {
-          const data = await response.json() as any;
-          const reply = cleanAiOutput(data?.choices?.[0]?.message?.content || '');
-          if (reply) return reply;
-        }
-      } catch (e: any) {
-        console.warn(`NVIDIA NIM (${model}) call failed...`, e.message);
-      }
-    }
+  for (const runner of providerRunners) {
+    const res = await runner();
+    if (res) return res;
   }
 
-  // 5. Intelligent Offline Fallback Engine
+  // Fallback: Intelligent Offline Fallback Engine
   const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || '';
-  return `### 💡 Rexam AI Coach Insights\n**Regarding:** "${lastUserMsg.slice(0, 70)}..."\n\n` +
-    `1. **Core Concept Analysis**: Break down the problem into fundamental components, establish known variables, and isolate the unknown target.\n` +
-    `2. **Speed & Option Elimination**: Use order-of-magnitude estimation and unit-digit checks to eliminate at least two incorrect options immediately.\n` +
-    `3. **Recommended Next Step**: Solve 5-10 targeted practice questions under timed exam conditions (60-90 seconds per question) to cement mastery.`;
+  return {
+    content: `### 💡 Rexam AI Coach Insights\n**Regarding:** "${lastUserMsg.slice(0, 70)}..."\n\n` +
+      `1. **Core Concept Analysis**: Break down the problem into fundamental components, establish known variables, and isolate the unknown target.\n` +
+      `2. **Speed & Option Elimination**: Use order-of-magnitude estimation and unit-digit checks to eliminate at least two incorrect options immediately.\n` +
+      `3. **Recommended Next Step**: Solve 5-10 targeted practice questions under timed exam conditions (60-90 seconds per question) to cement mastery.`,
+    provider: 'Offline Educational Engine',
+    model: 'heuristic-rules'
+  };
+}
+
+export async function callLlmChat(
+  messages: ChatMessageItem[],
+  temperatureOrOptions: number | LlmChatOptions = 0.7,
+  jsonModeFlag = false
+): Promise<string> {
+  const result = await callLlmChatWithProvider(messages, temperatureOrOptions, jsonModeFlag);
+  return result.content;
 }
 
 import dns from 'node:dns';

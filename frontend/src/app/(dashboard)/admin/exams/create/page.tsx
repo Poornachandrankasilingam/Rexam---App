@@ -156,6 +156,7 @@ export default function CreateExamPage() {
   const [aiDifficulty, setAiDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM")
   const [aiCount, setAiCount] = useState(10)
   const [aiLanguage, setAiLanguage] = useState("English")
+  const [aiProvider, setAiProvider] = useState<"auto" | "gemini" | "nvidia">("auto")
   const [isAiGenerating, setIsAiGenerating] = useState(false)
 
   // OCR Upload state
@@ -179,8 +180,9 @@ export default function CreateExamPage() {
         topic: aiTopic === "ALL" ? undefined : aiTopic,
         difficulty: aiDifficulty,
         count: aiCount,
-        language: aiLanguage
-      })
+        language: aiLanguage,
+        provider: aiProvider
+      }, { timeout: 60000 })
 
       if (res.data?.questions && res.data.questions.length > 0) {
         const generated: ParsedQuestion[] = res.data.questions.map((q: any) => ({
@@ -444,6 +446,22 @@ export default function CreateExamPage() {
                       <span>Instant AI Exam Question Builder</span>
                     </h3>
                     <p className="text-xs text-slate-300">Generate high-yield questions for Quantitative Aptitude, Logical Reasoning, and Verbal Ability with complete solutions.</p>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-slate-300 flex items-center justify-between">
+                      <span>AI Engine Provider</span>
+                      <span className="text-[10px] text-indigo-400 font-mono">Google Gemini & NVIDIA NIM</span>
+                    </label>
+                    <select
+                      value={aiProvider}
+                      onChange={(e) => setAiProvider(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 border border-white/10 text-white focus:outline-none font-bold"
+                    >
+                      <option value="auto">Auto Cascade (Google Gemini 3.8 + NVIDIA NIM)</option>
+                      <option value="gemini">Google Gemini 3.8 / 3.6 Flash (Primary Engine)</option>
+                      <option value="nvidia">NVIDIA NIM (meta/llama-3.2-11b-vision-instruct)</option>
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">

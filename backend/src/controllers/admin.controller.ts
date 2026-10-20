@@ -350,7 +350,8 @@ export const generateAiQuestionsHandler = async (req: AuthenticatedRequest, res:
       topic,
       difficulty = "MEDIUM",
       count = 5,
-      language = "English"
+      language = "English",
+      provider = "auto"
     } = req.body;
 
     const { generateAiQuestions } = await import('../services/aiQuestionGeneratorService.js');
@@ -360,15 +361,19 @@ export const generateAiQuestionsHandler = async (req: AuthenticatedRequest, res:
       topic,
       difficulty,
       count: Number(count) || 5,
-      language
+      language,
+      provider
     });
 
+    const primaryProvider = generated[0]?.provider || 'AI Engine';
+
     return res.status(200).json({
-      message: `Generated ${generated.length} AI questions for ${subject}`,
+      message: `Generated ${generated.length} AI questions for ${subject} via ${primaryProvider}`,
       questions: generated,
       count: generated.length,
       subject,
-      language
+      language,
+      provider: primaryProvider
     });
   } catch (error: any) {
     console.error('❌ AI Question Generation Error:', error);
